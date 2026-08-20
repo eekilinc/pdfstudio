@@ -60,8 +60,14 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
     { title: 'Sayfa Yönetimi & Birleştirme', desc: 'Sayfaları döndürme, silme, çoğaltma, sıralama ve birden fazla PDF dosyasını tek dosyada birleştirme.', icon: Layers, color: '#8b5cf6' },
   ];
 
-  const handleOpenGithub = () => {
-    window.open('https://github.com', '_blank');
+  const handleOpenGithub = async () => {
+    const url = 'https://github.com/eekilinc/pdfstudio';
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_url', { url });
+    } catch (_) {
+      window.open(url, '_blank');
+    }
   };
 
   return (
