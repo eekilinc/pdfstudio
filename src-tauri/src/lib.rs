@@ -46,10 +46,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
         .setup(|app| {
-            if let Some(window) = app.get_webview_window("main") {
-                let icon_bytes = include_bytes!("../icons/icon.png");
-                if let Ok(icon) = tauri::image::Image::from_bytes(icon_bytes) {
-                    let _ = window.set_icon(icon);
+            let icon_bytes = include_bytes!("../icons/icon.png");
+            if let Ok(icon) = tauri::image::Image::from_bytes(icon_bytes) {
+                for window in app.webview_windows().values() {
+                    let _ = window.set_icon(icon.clone());
                 }
             }
             Ok(())
