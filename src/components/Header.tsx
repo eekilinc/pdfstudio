@@ -158,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
       overflow: 'visible',
       gap: '12px',
     }}>
-      {/* 1. LEFT SECTION: Brand, Sidebar Toggle & File Operations */}
+      {/* 1. LEFT SECTION: Brand, Open, Save, Operations */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <button 
           onClick={onToggleSidebar}
@@ -170,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Brand Icon & Name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '2px' }}>
           <div style={{
             background: 'var(--accent-gradient)',
             width: '28px',
@@ -196,7 +196,7 @@ export const Header: React.FC<HeaderProps> = ({
                 fontWeight: 700
               }}>PRO</span>
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {docState.filename || 'Belge Yok'}
             </div>
           </div>
@@ -219,6 +219,17 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <FolderOpen size={14} />
           <span className="header-btn-label">Aç</span>
+        </button>
+
+        {/* Primary Save CTA on the Left */}
+        <button 
+          onClick={onExportPdf} 
+          className="btn-primary" 
+          data-tooltip="PDF Olarak Kaydet & İndir (Ctrl+S)"
+          style={{ fontSize: '12px', padding: '5px 10px', gap: '5px', fontWeight: 600 }}
+        >
+          <Download size={13} />
+          <span>Kaydet</span>
         </button>
 
         {/* Unified Operations Dropdown */}
@@ -464,7 +475,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* 3. RIGHT SECTION: Reader Filters, Page Organizer & Download CTA */}
+      {/* 3. RIGHT SECTION: Reader Filters, Page Organizer, Print, Theme & Help */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
         {/* Eye Reader Mode Dropdown */}
         <div ref={filterMenuRef} style={{ position: 'relative' }}>
@@ -565,19 +576,6 @@ export const Header: React.FC<HeaderProps> = ({
           style={{ width: '30px', height: '30px' }}
         >
           <HelpCircle size={15} color="var(--accent-primary)" />
-        </button>
-
-        <div style={{ height: '18px', width: '1px', background: 'var(--border-color)', margin: '0 2px' }} />
-
-        {/* Primary Save CTA */}
-        <button 
-          onClick={onExportPdf} 
-          className="btn-primary" 
-          data-tooltip="PDF Olarak Kaydet & İndir (Ctrl+S)"
-          style={{ fontSize: '12px', padding: '6px 12px', gap: '6px', fontWeight: 600 }}
-        >
-          <Download size={14} />
-          <span>Kaydet</span>
         </button>
       </div>
     </header>

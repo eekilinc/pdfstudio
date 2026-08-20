@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Sparkles, 
@@ -17,7 +17,10 @@ import {
   Stamp,
   Lock,
   Minimize2,
-  ExternalLink
+  ExternalLink,
+  Info,
+  Ruler,
+  CheckSquare
 } from 'lucide-react';
 
 const GithubIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
@@ -31,33 +34,41 @@ interface AboutModalProps {
   onClose: () => void;
 }
 
+type TabType = 'overview' | 'features' | 'shortcuts';
+
 export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+
   if (!isOpen) return null;
 
   const shortcuts = [
     { key: 'Ctrl + Z', desc: 'Geri Al (Undo)' },
     { key: 'Ctrl + Y', desc: 'Yinele (Redo)' },
     { key: 'Ctrl + S', desc: 'PDF Olarak Kaydet & İndir' },
-    { key: 'Ctrl + F', desc: 'Belge İçinde Hızlı Arama' },
-    { key: 'V', desc: 'Seçim & Taşıma & Metin Kopyalama' },
-    { key: 'H', desc: 'Kaydırma / Gezinme Aracı (Pan)' },
-    { key: 'E', desc: 'Doğrudan Metin Düzenleme Aracı' },
+    { key: 'Ctrl + F', desc: 'Belge İçinde Arama' },
+    { key: 'Ctrl + O', desc: 'PDF Dosyası Aç' },
+    { key: 'Ctrl + P', desc: 'Belgeyi Yazdır' },
+    { key: 'V', desc: 'Seçim & Taşıma & Kopyalama' },
+    { key: 'H', desc: 'Sayfayı Kaydır / Gezin (Pan)' },
+    { key: 'E', desc: 'Doğrudan Metin Düzenleme' },
     { key: 'P', desc: 'Canlı Çizim Kalemi' },
-    { key: 'T', desc: 'Yeni Metin Kutusu Ekleme' },
+    { key: 'T', desc: 'Yeni Metin Kutusu Ekle' },
     { key: 'Delete', desc: 'Seçili Nesneyi Sil' },
   ];
 
   const features = [
-    { title: 'Doğrudan Metin Düzenleme', desc: 'PDF üzerindeki orijinal metinleri anında değiştirin, silin ve yeniden yazın.', icon: FileText, color: '#38bdf8' },
-    { title: 'Tesseract OCR Motoru', desc: 'Taranmış ve resim formatındaki PDF belgelerini optik karakter tanıma ile düzenlenebilir yapın.', icon: ScanText, color: '#10b981' },
-    { title: 'Sayfaları Böl & Ayıkla', desc: 'Belirli sayfa aralıklarını çıkarın veya her sayfayı tek tek bağımsız PDF yapın.', icon: Scissors, color: '#f43f5e' },
-    { title: 'Sayfa Numaralandırma', desc: 'Tüm sayfalara tek tıkla otomatik başlık, altbilgi ve sayfa numarası basın.', icon: Hash, color: '#3b82f6' },
-    { title: 'İki PDF Karşılaştırma', desc: 'İki farklı sözleşmeyi yan yana pencerelerde eşzamanlı kaydırarak inceleyin.', icon: GitCompare, color: '#10b981' },
-    { title: 'Boyut Küçült & Optimize Et', desc: 'Yüksek kaliteli sıkıştırma profilleriyle PDF dosya boyutunu küçültün.', icon: Minimize2, color: '#f59e0b' },
-    { title: 'Dijital İmza & Kaşe', desc: 'Çizerek, yazarak veya resim yükleyerek resmi sözleşme onaylama ve damgalama.', icon: Stamp, color: '#ec4899' },
-    { title: 'Parola & Güvenlik Kilidi', desc: 'Belgelerinizi 128-bit AES şifreleme ve güçlü parolalarla koruma altına alın.', icon: Lock, color: '#a855f7' },
-    { title: 'Canlı Çizim & Vurgulayıcı', desc: '60 FPS anlık önizleme ile yüksek hassasiyetli serbest çizim ve satır vurgulama.', icon: PenTool, color: '#f59e0b' },
-    { title: 'Sayfa Yönetimi & Birleştirme', desc: 'Sayfaları döndürme, silme, çoğaltma, sıralama ve birden fazla PDF dosyasını tek dosyada birleştirme.', icon: Layers, color: '#8b5cf6' },
+    { title: 'Doğrudan Metin Düzenleme', desc: 'Orijinal PDF metinlerini anında değiştirin, silin ve yeniden yazın.', icon: FileText, color: '#38bdf8' },
+    { title: 'Tesseract OCR Tarama', desc: 'Taranmış resim belgelerini optik karakter tanıma ile düzenlenebilir yapın.', icon: ScanText, color: '#10b981' },
+    { title: 'Sayfaları Böl & Ayıkla', desc: 'Aralık çıkarma, tek sayfa bölme, tek/çift ayrımı veya gruplayarak parçalama.', icon: Scissors, color: '#f43f5e' },
+    { title: 'Sayfa Numaralandırma', desc: 'Tüm sayfalara otomatik başlık, altbilgi ve sayfa numarası basın.', icon: Hash, color: '#3b82f6' },
+    { title: 'İki PDF Karşılaştırma', desc: 'İki sözleşmeyi yan yana pencerelerde eşzamanlı kaydırarak inceleyin.', icon: GitCompare, color: '#10b981' },
+    { title: 'Boyut Küçült & Optimize Et', desc: 'Yüksek kaliteli sıkıştırma profilleriyle dosya boyutunu küçültün.', icon: Minimize2, color: '#f59e0b' },
+    { title: 'Dijital İmza & Kaşe', desc: 'Çizerek, yazarak veya resim yükleyerek resmi onay ve damgalama.', icon: Stamp, color: '#ec4899' },
+    { title: 'Parola & Güvenlik Kilidi', desc: '128-bit AES şifreleme ve güçlü parolalarla koruma altına alın.', icon: Lock, color: '#a855f7' },
+    { title: 'Teknik Mesafe Ölçümü', desc: 'Plan ve krokiler üzerinde iki nokta arasındaki mesafeyi (cm/mm) ölçün.', icon: Ruler, color: '#38bdf8' },
+    { title: 'İnteraktif Onay Kutusu', desc: 'Tıklanabilir onay kutuları (checkbox) ekleyin ve yönetin.', icon: CheckSquare, color: '#10b981' },
+    { title: 'Canlı Çizim & Fosforlu Kalem', desc: '60 FPS anlık önizleme ile serbest çizim ve satır vurgulama.', icon: PenTool, color: '#f59e0b' },
+    { title: 'Sayfa Yönetimi & Birleştirme', desc: 'Sayfaları sıralama, döndürme, çoğaltma ve birden çok PDF\'i birleştirme.', icon: Layers, color: '#8b5cf6' },
   ];
 
   const handleOpenGithub = async () => {
@@ -72,83 +83,237 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-card animate-fade-in" style={{ width: '740px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal-card animate-fade-in" style={{ width: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{
-          padding: '16px 20px',
+          padding: '14px 18px',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           background: 'var(--bg-tertiary)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
               background: 'var(--accent-gradient)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: 'var(--shadow-glow)',
             }}>
-              <FileText size={20} color="#ffffff" />
+              <FileText size={18} color="#ffffff" />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>PDF Studio Pro</span>
-                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.2)', color: 'var(--accent-primary)', padding: '2px 6px', borderRadius: '6px' }}>v1.0.0</span>
+                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-primary)', padding: '1px 5px', borderRadius: '4px' }}>v1.0.0</span>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Yüksek Performanslı Masaüstü PDF Düzenleme & Üretkenlik Paketi
+                Yüksek Performanslı Masaüstü PDF Düzenleme Paketi
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button
               onClick={handleOpenGithub}
               className="btn-ghost"
-              data-tooltip="GitHub Kaynak Kodu & Proje"
-              style={{ fontSize: '12px', padding: '6px 10px', gap: '6px', color: 'var(--text-primary)' }}
+              data-tooltip="GitHub Kaynak Kodu"
+              style={{ fontSize: '11px', padding: '5px 8px', gap: '5px', color: 'var(--text-primary)' }}
             >
-              <GithubIcon size={16} />
+              <GithubIcon size={14} />
               <span>GitHub</span>
-              <ExternalLink size={12} style={{ opacity: 0.6 }} />
+              <ExternalLink size={11} style={{ opacity: 0.6 }} />
             </button>
 
-            <button onClick={onClose} className="btn-icon" style={{ width: '28px', height: '28px' }}>
-              <X size={16} />
+            <button onClick={onClose} className="btn-icon" style={{ width: '26px', height: '26px' }}>
+              <X size={15} />
             </button>
           </div>
         </div>
 
-        {/* Content Body */}
-        <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Hero Banner */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(129, 140, 248, 0.08))',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
-            borderRadius: 'var(--radius-md)',
-            padding: '14px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}>
-            <Sparkles size={26} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
-            <div style={{ fontSize: '12px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
-              <strong style={{ color: 'var(--text-primary)' }}>PDF Studio Pro</strong>, %100 gizlilik odaklı mimarisiyle hiçbir veriyi sunuculara göndermeden tüm işlemleri yerel cihazınızda gerçekleştiren, modern, ultra hızlı ve kapsamlı bir masaüstü PDF aracıdır.
-            </div>
-          </div>
+        {/* Tab Navigation Navigation Bar */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border-color)',
+          background: 'var(--bg-secondary)',
+          padding: '0 12px',
+          gap: '4px',
+        }}>
+          <button
+            onClick={() => setActiveTab('overview')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: activeTab === 'overview' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'overview' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              background: 'transparent',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Info size={14} />
+            <span>Genel Bakış</span>
+          </button>
 
-          {/* Key Features Grid */}
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Zap size={15} color="var(--accent-primary)" />
-              <span>Kapsamlı Araçlar & Özellikler</span>
+          <button
+            onClick={() => setActiveTab('features')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: activeTab === 'features' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'features' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              background: 'transparent',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Zap size={14} />
+            <span>Özellikler ({features.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('shortcuts')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: activeTab === 'shortcuts' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'shortcuts' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              background: 'transparent',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Keyboard size={14} />
+            <span>Kısayollar ({shortcuts.length})</span>
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div style={{ padding: '16px 18px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* TAB 1: OVERVIEW */}
+          {activeTab === 'overview' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="animate-fade-in">
+              {/* Hero Box */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(129, 140, 248, 0.06))',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}>
+                <Sparkles size={22} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
+                <div style={{ fontSize: '12px', lineHeight: '1.5', color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>PDF Studio Pro</strong>, %100 gizlilik odaklı mimarisiyle hiçbir veriyi sunuculara göndermeden tüm işlemleri yerel cihazınızda gerçekleştiren, ultra hızlı ve profesyonel bir masaüstü PDF aracıdır.
+                </div>
+              </div>
+
+              {/* Highlights 3-Card Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px', textAlign: 'center' }}>
+                  <ShieldCheck size={18} color="#10b981" style={{ margin: '0 auto 4px' }} />
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)' }}>%100 Yerel Güvenlik</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Sıfır veri sızıntısı</div>
+                </div>
+
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px', textAlign: 'center' }}>
+                  <Cpu size={18} color="#38bdf8" style={{ margin: '0 auto 4px' }} />
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)' }}>Rust + React 19</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Maksimum hız</div>
+                </div>
+
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px', textAlign: 'center' }}>
+                  <ScanText size={18} color="#f59e0b" style={{ margin: '0 auto 4px' }} />
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)' }}>Tesseract OCR</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Optik karakter tanıma</div>
+                </div>
+              </div>
+
+              {/* GitHub Repo Card */}
+              <div style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <GithubIcon size={20} />
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      eekilinc/pdfstudio
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                      Resmi Açık Kaynak GitHub Deposu
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleOpenGithub}
+                  className="btn-primary"
+                  style={{ fontSize: '11px', padding: '5px 12px', gap: '5px' }}
+                >
+                  <span>Depoyu Aç</span>
+                  <ExternalLink size={12} />
+                </button>
+              </div>
+
+              {/* Tech Stack Specs */}
+              <div style={{
+                background: 'var(--bg-tertiary)',
+                borderRadius: 'var(--radius-md)',
+                padding: '10px 12px',
+                border: '1px solid var(--border-color)',
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Cpu size={13} color="var(--accent-primary)" />
+                  <span>Tauri 2.0 (Rust) + PDF.js + pdf-lib + Fabric + Vite</span>
+                </div>
+                <div style={{ color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={12} />
+                  <span>v1.0.0 Yayın</span>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          )}
+
+          {/* TAB 2: FEATURES (Compact 2-Column Grid) */}
+          {activeTab === 'features' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }} className="animate-fade-in">
               {features.map((f, i) => (
                 <div 
                   key={i} 
@@ -156,43 +321,39 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                     background: 'var(--bg-secondary)',
                     border: '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-md)',
-                    padding: '10px 12px',
+                    padding: '8px 10px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '4px',
+                    gap: '2px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    <f.icon size={14} color={f.color} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <f.icon size={13} color={f.color} />
                     <span>{f.title}</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', lineHeight: '1.35' }}>
                     {f.desc}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
 
-          {/* Shortcuts Table */}
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Keyboard size={15} color="var(--accent-primary)" />
-              <span>Klavye Kısayolları</span>
-            </div>
+          {/* TAB 3: KEYBOARD SHORTCUTS (Compact Matrix) */}
+          {activeTab === 'shortcuts' && (
             <div style={{
               background: 'var(--bg-secondary)',
               border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-md)',
               overflow: 'hidden',
-            }}>
+            }} className="animate-fade-in">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--border-color)' }}>
                 {shortcuts.map((s, i) => (
                   <div 
                     key={i}
                     style={{
                       background: 'var(--bg-secondary)',
-                      padding: '8px 12px',
+                      padding: '7px 10px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -200,56 +361,31 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                     }}
                   >
                     <span style={{ color: 'var(--text-secondary)' }}>{s.desc}</span>
-                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '10px', background: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: '4px', border: '1px solid var(--border-color)', fontWeight: 600 }}>
                       {s.key}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-
-          {/* Tech Stack & Security Badges */}
-          <div style={{
-            background: 'var(--bg-tertiary)',
-            borderRadius: 'var(--radius-md)',
-            padding: '12px 16px',
-            border: '1px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '11px',
-            color: 'var(--text-muted)',
-            flexWrap: 'wrap',
-            gap: '8px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Cpu size={14} color="var(--accent-primary)" />
-              <span>Tauri 2.0 (Rust) + React 19 + TypeScript + PDF.js + Tesseract.js</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981' }}>
-              <ShieldCheck size={14} />
-              <span>%100 Yerel Çevrimdışı Güvenlik</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
         <div style={{
-          padding: '12px 20px',
+          padding: '10px 18px',
           borderTop: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           background: 'var(--bg-tertiary)',
-          fontSize: '12px',
+          fontSize: '11px',
         }}>
-          <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <CheckCircle2 size={13} color="var(--accent-primary)" />
-            <span>Telif Hakkı © 2026 PDF Studio Pro. Tüm hakları saklıdır.</span>
+          <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span>© 2026 PDF Studio Pro • eekilinc</span>
           </div>
 
-          <button onClick={onClose} className="btn-primary" style={{ padding: '6px 18px', fontSize: '12px' }}>
+          <button onClick={onClose} className="btn-primary" style={{ padding: '5px 16px', fontSize: '11.5px' }}>
             Kapat
           </button>
         </div>
