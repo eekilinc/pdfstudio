@@ -53,11 +53,12 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const shortcuts = [
+    { key: 'Ctrl + S', desc: 'Doğrudan Kaydet (Hızlı Kaydet)' },
+    { key: 'Ctrl + Shift + S', desc: 'Farklı Kaydet... (Konum Seç)' },
+    { key: 'Ctrl + O', desc: 'PDF Dosyası Aç' },
     { key: 'Ctrl + Z', desc: 'Geri Al (Undo)' },
     { key: 'Ctrl + Y', desc: 'Yinele (Redo)' },
-    { key: 'Ctrl + S', desc: 'PDF Olarak Kaydet & İndir' },
     { key: 'Ctrl + F', desc: 'Belge İçinde Arama' },
-    { key: 'Ctrl + O', desc: 'PDF Dosyası Aç' },
     { key: 'Ctrl + P', desc: 'Belgeyi Yazdır' },
     { key: 'V', desc: 'Seçim & Taşıma & Kopyalama' },
     { key: 'H', desc: 'Sayfayı Kaydır / Gezin (Pan)' },

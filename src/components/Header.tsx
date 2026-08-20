@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { 
   FileText, 
   FolderOpen, 
+  Save,
   Download, 
   Printer, 
   Undo2, 
@@ -37,8 +38,10 @@ interface HeaderProps {
   totalPages: number;
   onPageNumberChange: (pageNumber: number) => void;
   onOpenPdf: (file: File) => void;
+  onOpenNativePdf?: () => void;
   onLoadSample: () => void;
-  onExportPdf: () => void;
+  onSavePdf: () => void;
+  onSaveAsPdf: () => void;
   onPrint: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -74,8 +77,10 @@ export const Header: React.FC<HeaderProps> = ({
   totalPages,
   onPageNumberChange,
   onOpenPdf,
+  onOpenNativePdf,
   onLoadSample,
-  onExportPdf,
+  onSavePdf,
+  onSaveAsPdf,
   onPrint,
   onUndo,
   onRedo,
@@ -212,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Quick Open Button */}
         <button 
-          onClick={() => fileInputRef.current?.click()} 
+          onClick={onOpenNativePdf || (() => fileInputRef.current?.click())} 
           className="btn-ghost" 
           data-tooltip="PDF Aç (Ctrl+O)"
           style={{ fontSize: '12px', padding: '5px 8px', gap: '5px' }}
@@ -221,15 +226,26 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="header-btn-label">Aç</span>
         </button>
 
-        {/* Primary Save CTA on the Left */}
+        {/* Primary Direct Save Button (Ctrl+S) */}
         <button 
-          onClick={onExportPdf} 
+          onClick={onSavePdf} 
           className="btn-primary" 
-          data-tooltip="PDF Olarak Kaydet & İndir (Ctrl+S)"
-          style={{ fontSize: '12px', padding: '5px 10px', gap: '5px', fontWeight: 600 }}
+          data-tooltip="Kaydet (Ctrl+S)"
+          style={{ fontSize: '12px', padding: '5px 9px', gap: '5px', fontWeight: 600 }}
+        >
+          <Save size={13} />
+          <span>Kaydet</span>
+        </button>
+
+        {/* Save As Button (Ctrl+Shift+S) */}
+        <button 
+          onClick={onSaveAsPdf} 
+          className="btn-ghost" 
+          data-tooltip="Farklı Kaydet... (Ctrl+Shift+S)"
+          style={{ fontSize: '12px', padding: '5px 8px', gap: '4px' }}
         >
           <Download size={13} />
-          <span>Kaydet</span>
+          <span className="header-btn-label">Farklı Kaydet</span>
         </button>
 
         {/* Unified Operations Dropdown */}

@@ -93,6 +93,13 @@ export function App() {
   const [pendingStampData, setPendingStampData] = useState<Partial<StampAnnotation> | null>(null);
 
   const [pendingImageData, setPendingImageData] = useState<string | null>(null);
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
+
+  const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToast({ text, type });
+    setTimeout(() => setToast(null), 3200);
+  };
 
   const [isOrganizeModalOpen, setIsOrganizeModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -148,6 +155,7 @@ export function App() {
         const fileBytes = await invoke<number[]>('read_pdf_file', { path: startupPath });
         const buffer = new Uint8Array(fileBytes).buffer;
         const filename = startupPath.split(/[\\/]/).pop() || 'Belge.pdf';
+        setCurrentFilePath(startupPath);
         await parseAndSetPdf(buffer, filename, fileBytes.length);
         return;
       }
@@ -178,22 +186,19 @@ export function App() {
       if (!pdf) throw new Error('PDF yüklenemedi');
 
       const numPages = pdf.numPages;
-
-      // Sample first page for default viewport dimensions
-      const firstPage = await pdf.getPage(1);
-      const defaultViewport = firstPage.getViewport({ scale: 1.0 });
-      const defaultW = defaultViewport.width || 595.28;
-      const defaultH = defaultViewport.height || 841.89;
-
       const pages: PageState[] = [];
       const pageOrder: number[] = [];
 
-      for (let i = 1; i <= numPages; i++) {
-        const pageIdx = i - 1;
+      for (let pageIdx = 0; pageIdx < numPages; pageIdx++) {
+        const p = await pdf.getPage(pageIdx + 1);
+        const vp = p.getViewport({ scale: 1.0 });
+        const defaultW = vp.width;
+        const defaultH = vp.height;
+
         pages.push({
           pageIndex: pageIdx,
-          originalPageNumber: i,
-          displayPageNumber: i,
+          originalPageNumber: pageIdx + 1,
+          displayPageNumber: pageIdx + 1,
           rotation: 0,
           width: defaultW,
           height: defaultH,
@@ -229,6 +234,7 @@ export function App() {
     try {
       const sampleBytes = await createSamplePdf();
       const buffer = sampleBytes.buffer.slice(sampleBytes.byteOffset, sampleBytes.byteOffset + sampleBytes.byteLength);
+      setCurrentFilePath(null);
       await parseAndSetPdf(buffer as ArrayBuffer, 'Ornek_Sozlesme_Sablonu.pdf', sampleBytes.byteLength);
     } catch (e) {
       console.error('Failed to create sample PDF:', e);
@@ -237,7 +243,25 @@ export function App() {
 
   const handleOpenPdfFile = async (file: File) => {
     const arrayBuffer = await file.arrayBuffer();
+    const filePath = (file as any).path || null;
+    setCurrentFilePath(filePath);
     await parseAndSetPdf(arrayBuffer, file.name, file.size);
+    showToast(`Açıldı: ${file.name}`, 'info');
+  };
+
+  const handleOpenNativePdf = async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const chosenPath = await invoke<string | null>('open_pdf_dialog');
+      if (chosenPath) {
+        const fileBytes = await invoke<number[]>('read_pdf_file', { path: chosenPath });
+        const buffer = new Uint8Array(fileBytes).buffer;
+        const filename = chosenPath.split(/[\\/]/).pop() || 'Belge.pdf';
+        setCurrentFilePath(chosenPath);
+        await parseAndSetPdf(buffer, filename, fileBytes.length);
+        showToast(`Açıldı: ${filename}`, 'info');
+      }
+    } catch (_) {}
   };
 
   // Undo / Redo Handlers
@@ -259,26 +283,71 @@ export function App() {
     }
   };
 
-  // Export PDF Handler
-  const handleExportPdf = async () => {
+  // Direct Save Handler (Ctrl+S) - Overwrites opened file seamlessly or prompts Save As
+  const handleSavePdf = async () => {
+    if (!docState.data) return;
+
+    if (currentFilePath) {
+      try {
+        const exportedBytes = await exportModifiedPdf(docState);
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('write_pdf_file', {
+          path: currentFilePath,
+          contents: Array.from(exportedBytes),
+        });
+        setDocState(prev => ({ ...prev, data: exportedBytes.buffer as ArrayBuffer }));
+        showToast(`✓ Kaydedildi: ${docState.filename}`, 'success');
+        return;
+      } catch (err) {
+        console.error('Direct save error, falling back to Save As:', err);
+      }
+    }
+
+    // If no existing file path, prompt Save As
+    await handleSaveAsPdf();
+  };
+
+  // Save As Handler (Ctrl+Shift+S) - Native Save Dialog to pick location and name
+  const handleSaveAsPdf = async () => {
     if (!docState.data) return;
 
     try {
       const exportedBytes = await exportModifiedPdf(docState);
-      const blob = new Blob([exportedBytes as any], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
+      const defaultName = docState.filename || 'Belge.pdf';
 
-      const a = document.createElement('a');
-      a.href = url;
-      const baseName = docState.filename ? docState.filename.replace('.pdf', '') : 'Belge';
-      a.download = `${baseName}_Duzenlenmis.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const chosenPath = await invoke<string | null>('pick_save_pdf_path', { defaultName });
+        if (chosenPath) {
+          await invoke('write_pdf_file', {
+            path: chosenPath,
+            contents: Array.from(exportedBytes),
+          });
+          const newFilename = chosenPath.split(/[\\/]/).pop() || defaultName;
+          setCurrentFilePath(chosenPath);
+          setDocState(prev => ({ ...prev, filename: newFilename, data: exportedBytes.buffer as ArrayBuffer }));
+          showToast(`✓ Farklı kaydedildi: ${newFilename}`, 'success');
+          return;
+        } else {
+          return; // Cancelled
+        }
+      } catch (_) {
+        // Fallback for browser download mode
+        const blob = new Blob([exportedBytes as any], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const baseName = docState.filename ? docState.filename.replace('.pdf', '') : 'Belge';
+        a.download = `${baseName}_Duzenlenmis.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('✓ PDF İndirildi', 'success');
+      }
     } catch (err) {
-      console.error('Export error:', err);
-      alert('PDF dışa aktarılırken bir hata oluştu: ' + (err as Error).message);
+      console.error('Save As error:', err);
+      alert('PDF kaydedilirken bir hata oluştu: ' + (err as Error).message);
     }
   };
 
@@ -577,7 +646,15 @@ export function App() {
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        handleExportPdf();
+        if (e.shiftKey) {
+          handleSaveAsPdf();
+        } else {
+          handleSavePdf();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        handleOpenNativePdf();
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnotation && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
@@ -594,7 +671,7 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [historyIndex, history, selectedAnnotation, docState]);
+  }, [historyIndex, history, selectedAnnotation, docState, currentFilePath]);
 
   const activePages = docState.pageOrder
     .map(idx => docState.pages.find(p => p.pageIndex === idx))
@@ -606,6 +683,33 @@ export function App() {
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+      {/* Floating Action Toast Notification */}
+      {toast && (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'fixed',
+            top: '56px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: toast.type === 'success' ? '#059669' : toast.type === 'error' ? '#ef4444' : '#2563eb',
+            color: '#ffffff',
+            padding: '7px 18px',
+            borderRadius: 'var(--radius-full)',
+            fontSize: '12px',
+            fontWeight: 600,
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            pointerEvents: 'none',
+          }}
+        >
+          <span>{toast.text}</span>
+        </div>
+      )}
+
       {/* 1. Top Header */}
       <Header
         docState={docState}
@@ -613,8 +717,10 @@ export function App() {
         totalPages={activePages.length}
         onPageNumberChange={handlePageNumberJump}
         onOpenPdf={handleOpenPdfFile}
+        onOpenNativePdf={handleOpenNativePdf}
         onLoadSample={loadSampleDocument}
-        onExportPdf={handleExportPdf}
+        onSavePdf={handleSavePdf}
+        onSaveAsPdf={handleSaveAsPdf}
         onPrint={handlePrint}
         onUndo={handleUndo}
         onRedo={handleRedo}
