@@ -295,7 +295,6 @@ export function App() {
           path: currentFilePath,
           contents: Array.from(exportedBytes),
         });
-        setDocState(prev => ({ ...prev, data: exportedBytes.buffer as ArrayBuffer }));
         showToast(`✓ Kaydedildi: ${docState.filename}`, 'success');
         return;
       } catch (err) {
@@ -325,7 +324,7 @@ export function App() {
           });
           const newFilename = chosenPath.split(/[\\/]/).pop() || defaultName;
           setCurrentFilePath(chosenPath);
-          setDocState(prev => ({ ...prev, filename: newFilename, data: exportedBytes.buffer as ArrayBuffer }));
+          setDocState(prev => ({ ...prev, filename: newFilename }));
           showToast(`✓ Farklı kaydedildi: ${newFilename}`, 'success');
           return;
         } else {

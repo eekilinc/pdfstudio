@@ -5,7 +5,8 @@ import {
   Trash2, 
   Copy, 
   ArrowUp, 
-  ArrowDown 
+  ArrowDown,
+  Layers
 } from 'lucide-react';
 import type { ActiveToolConfig, Annotation } from '../types/pdf';
 
@@ -239,19 +240,23 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
       )}
 
       {/* Opacity slider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div 
+        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        data-tooltip="Çizim & Nesne Saydamlık/Opaklık Ayarı (%10 - %100)"
+      >
+        <Layers size={13} color="var(--text-muted)" />
         <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Opaklık:</span>
         <input
           type="range"
           min={0.1}
           max={1.0}
           step={0.05}
-          value={currentOpacity}
+          value={currentOpacity !== undefined ? currentOpacity : 1.0}
           onChange={(e) => handleOpacityChange(Number(e.target.value))}
-          style={{ width: '60px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+          style={{ width: '64px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
         />
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px' }}>
-          {Math.round(currentOpacity * 100)}%
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', minWidth: '32px' }}>
+          {Math.round((currentOpacity !== undefined ? currentOpacity : 1.0) * 100)}%
         </span>
       </div>
 

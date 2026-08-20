@@ -793,7 +793,9 @@ const PageItem: React.FC<PageItemProps> = ({
       ctx.lineWidth = activeConfig.strokeWidth || (activeConfig.tool === 'highlighter' ? 18 : 3);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.globalAlpha = activeConfig.tool === 'highlighter' ? (activeConfig.opacity || 0.4) : (activeConfig.opacity || 1.0);
+      ctx.globalAlpha = activeConfig.tool === 'highlighter' 
+        ? (activeConfig.opacity !== undefined && activeConfig.opacity < 1 ? activeConfig.opacity : 0.4) 
+        : (activeConfig.opacity !== undefined ? activeConfig.opacity : 1.0);
 
       ctx.beginPath();
       ctx.moveTo(drawingPoints[0].x, drawingPoints[0].y);
@@ -871,15 +873,34 @@ const PageItem: React.FC<PageItemProps> = ({
     return [...annotations].reverse().find((ann) => {
       if (ann.type === 'pen' || ann.type === 'highlighter') {
         const draw = ann as DrawingAnnotation;
-        if (draw.points) {
-          return draw.points.some((p) => Math.hypot(p.x - pt.x, p.y - pt.y) < 18);
+        if (draw.points && draw.points.length > 0) {
+          const hitRadius = Math.max((draw.strokeWidth || 4) + 10, 20);
+          return draw.points.some((p) => Math.hypot(p.x - pt.x, p.y - pt.y) <= hitRadius);
+        }
+      }
+      if (ann.type === 'line' || ann.type === 'arrow') {
+        const shape = ann as ShapeAnnotation;
+        const x1 = shape.x;
+        const y1 = shape.y;
+        const x2 = shape.endX !== undefined ? shape.endX : shape.x + shape.width;
+        const y2 = shape.endY !== undefined ? shape.endY : shape.y + shape.height;
+        const lineLen = Math.hypot(x2 - x1, y2 - y1);
+        if (lineLen > 0) {
+          const dist = Math.abs((y2 - y1) * pt.x - (x2 - x1) * pt.y + x2 * y1 - y2 * x1) / lineLen;
+          const minX = Math.min(x1, x2) - 12;
+          const maxX = Math.max(x1, x2) + 12;
+          const minY = Math.min(y1, y2) - 12;
+          const maxY = Math.max(y1, y2) + 12;
+          if (dist < 16 && pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) {
+            return true;
+          }
         }
       }
       return (
-        pt.x >= ann.x - 8 &&
-        pt.x <= ann.x + ann.width + 8 &&
-        pt.y >= ann.y - 8 &&
-        pt.y <= ann.y + ann.height + 8
+        pt.x >= ann.x - 10 &&
+        pt.x <= ann.x + ann.width + 10 &&
+        pt.y >= ann.y - 10 &&
+        pt.y <= ann.y + ann.height + 10
       );
     });
   };
@@ -1161,7 +1182,9 @@ const PageItem: React.FC<PageItemProps> = ({
         height: maxY - minY,
         color: activeConfig.color,
         strokeWidth: activeConfig.strokeWidth,
-        opacity: activeConfig.tool === 'highlighter' ? (activeConfig.opacity || 0.4) : (activeConfig.opacity || 1.0),
+        opacity: activeConfig.tool === 'highlighter' 
+          ? (activeConfig.opacity !== undefined && activeConfig.opacity < 1 ? activeConfig.opacity : 0.4) 
+          : (activeConfig.opacity !== undefined ? activeConfig.opacity : 1.0),
         points: drawingPoints,
       } as DrawingAnnotation);
       setDrawingPoints([]);
