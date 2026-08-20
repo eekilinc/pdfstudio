@@ -736,6 +736,7 @@ export function App() {
           searchMatches={searchMatches}
           activeMatchIndex={activeMatchIndex}
           readerFilter={readerFilter}
+          onZoomChange={setZoom}
         />
       </div>
 

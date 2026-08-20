@@ -41,6 +41,7 @@ interface PDFViewerProps {
   searchMatches?: SearchMatch[];
   activeMatchIndex?: number;
   readerFilter?: ReaderFilter;
+  onZoomChange?: (newZoom: number) => void;
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({
@@ -63,6 +64,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   searchMatches = [],
   activeMatchIndex = -1,
   readerFilter = 'normal',
+  onZoomChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -73,6 +75,25 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
 
   // Active text editing state
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+
+  // Handle Ctrl + Mouse Wheel Zooming
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.12 : -0.12;
+        if (onZoomChange) {
+          onZoomChange(Math.min(4.0, Math.max(0.25, Math.round((zoom + delta) * 100) / 100)));
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [zoom, onZoomChange]);
 
   const activePages = docState.pageOrder
     .map(idx => docState.pages.find(p => p.pageIndex === idx))
