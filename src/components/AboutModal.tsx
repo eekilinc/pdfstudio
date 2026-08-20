@@ -316,7 +316,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
                 </div>
                 <div style={{ color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <CheckCircle2 size={12} />
-                  <span>v1.0.0 Yayın</span>
+                  <span>v{displayVersion} Yayın</span>
                 </div>
               </div>
             </div>

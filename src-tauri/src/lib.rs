@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::Path;
+use tauri::Manager;
 
 #[tauri::command]
 fn get_startup_file() -> Option<String> {
@@ -44,6 +45,15 @@ fn open_url(url: String) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                let icon_bytes = include_bytes!("../icons/icon.png");
+                if let Ok(icon) = tauri::image::Image::from_bytes(icon_bytes) {
+                    let _ = window.set_icon(icon);
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![get_startup_file, read_pdf_file, open_url])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
