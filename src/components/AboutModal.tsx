@@ -39,6 +39,16 @@ type TabType = 'overview' | 'features' | 'shortcuts';
 
 export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [displayVersion, setDisplayVersion] = useState(APP_VERSION);
+
+  React.useEffect(() => {
+    import('@tauri-apps/api/app')
+      .then((app) => app.getVersion())
+      .then((v) => {
+        if (v) setDisplayVersion(v);
+      })
+      .catch(() => {});
+  }, []);
 
   if (!isOpen) return null;
 
@@ -110,7 +120,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             <div>
               <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>PDF Studio Pro</span>
-                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-primary)', padding: '1px 5px', borderRadius: '4px' }}>v{APP_VERSION}</span>
+                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-primary)', padding: '1px 5px', borderRadius: '4px' }}>v{displayVersion}</span>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 Yüksek Performanslı Masaüstü PDF Düzenleme Paketi

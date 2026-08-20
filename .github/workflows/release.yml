@@ -28,6 +28,11 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Sync Project Version from Tag
+        run: |
+          node scripts/bump-version.js ${{ github.ref_name }}
+        shell: bash
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -46,7 +51,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'PDF Studio Pro ${{ github.ref_name }}'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: 'Download the Windows installer below to install PDF Studio Pro.'
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
