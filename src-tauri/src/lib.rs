@@ -32,9 +32,21 @@ fn open_pdf_dialog() -> Result<Option<String>, String> {
         use std::process::Command;
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let script = r#"Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.OpenFileDialog; $d.Filter = 'PDF Belgeleri (*.pdf)|*.pdf|Tum Dosyalar (*.*)|*.*'; if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write($d.FileName) }"#;
+        let script = r#"
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+            Add-Type -AssemblyName System.Windows.Forms
+            $d = New-Object System.Windows.Forms.OpenFileDialog
+            $d.Title = 'PDF Belgesi Seç'
+            $d.Filter = 'PDF Belgeleri (*.pdf)|*.pdf|Tüm Dosyalar (*.*)|*.*'
+            $d.CheckFileExists = $true
+            $d.RestoreDirectory = $true
+            $d.Multiselect = $false
+            if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                [Console]::Out.Write($d.FileName)
+            }
+        "#;
         let output = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .args(["-STA", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
             .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| e.to_string())?;
@@ -61,11 +73,22 @@ fn pick_save_pdf_path(default_name: String) -> Result<Option<String>, String> {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let sanitized = default_name.replace('\'', "").replace('"', "");
         let script = format!(
-            r#"Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.SaveFileDialog; $d.Filter = 'PDF Belgeleri (*.pdf)|*.pdf|Tum Dosyalar (*.*)|*.*'; $d.FileName = '{}'; if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{ [Console]::Out.Write($d.FileName) }}"#,
+            r#"
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+            Add-Type -AssemblyName System.Windows.Forms
+            $d = New-Object System.Windows.Forms.SaveFileDialog
+            $d.Title = 'PDF Olarak Kaydet'
+            $d.Filter = 'PDF Belgeleri (*.pdf)|*.pdf|Tüm Dosyalar (*.*)|*.*'
+            $d.FileName = '{}'
+            $d.RestoreDirectory = $true
+            if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
+                [Console]::Out.Write($d.FileName)
+            }}
+            "#,
             sanitized
         );
         let output = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .args(["-STA", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &script])
             .creation_flags(CREATE_NO_WINDOW)
             .output()
             .map_err(|e| e.to_string())?;

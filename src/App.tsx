@@ -330,7 +330,18 @@ export function App() {
         await parseAndSetPdf(buffer, filename, fileBytes.length);
         showToast(`Açıldı: ${filename}`, 'info');
       }
-    } catch (_) {}
+    } catch (err) {
+      console.warn('Native open dialog fallback:', err);
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/pdf';
+      input.onchange = (e: any) => {
+        if (e.target.files && e.target.files[0]) {
+          handleOpenPdfFile(e.target.files[0]);
+        }
+      };
+      input.click();
+    }
   };
 
   // Undo / Redo Handlers
