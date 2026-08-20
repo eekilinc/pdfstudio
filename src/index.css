@@ -1,0 +1,329 @@
+:root {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-workspace: #090d16;
+  --bg-panel-solid: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-active: #38bdf8;
+  --accent-primary: #38bdf8;
+  --accent-secondary: #818cf8;
+  --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 20px rgba(56, 189, 248, 0.25);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+[data-theme='light'] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
+  --bg-workspace: #e6edf5;
+  --bg-panel-solid: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-active: #0284c7;
+  --accent-primary: #0284c7;
+  --accent-secondary: #4f46e5;
+  --accent-gradient: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(2, 132, 199, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-workspace);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-dropdown {
+  background: var(--bg-panel-solid);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+/* UI Elements */
+.btn-primary {
+  background: var(--accent-gradient);
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-active);
+}
+
+.btn-icon {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-icon.active {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-ghost:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-ghost.active {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+  border-color: var(--border-color);
+}
+
+/* Tooltips */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.95);
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.15s ease;
+  z-index: 999;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow-md);
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Modal Overlay */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-card {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 600px;
+  overflow: hidden;
+}
+
+/* Calligraphic font helper */
+.font-handwriting {
+  font-family: 'Dancing Script', cursive;
+}
+
+/* =========================================================================
+   Selectable & Dynamic PDF Text Layer
+   ========================================================================= */
+.pdf-text-layer {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.pdf-text-layer span {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  cursor: text;
+}
+
+/* 1. Normal PDF: Canvas already draws vector text. Keep layer transparent to avoid double text */
+.pdf-text-layer.text-invisible span {
+  color: transparent !important;
+}
+
+.pdf-text-layer.text-invisible span::selection {
+  background: rgba(56, 189, 248, 0.35) !important;
+  color: transparent !important;
+}
+
+/* 2. Scanned / OCR Invisible Text PDF: Canvas is white paper, so text MUST be solid jet-black in all UI themes */
+.pdf-text-layer.text-visible span {
+  color: #000000 !important;
+  font-weight: 500 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* Only when user explicitly enables the Inverted Night Reader Filter */
+.page-dark-filter.pdf-text-layer.text-visible span {
+  color: #f1f5f9 !important;
+}
+
+.pdf-text-layer.text-visible span::selection {
+  background: rgba(56, 189, 248, 0.45) !important;
+  color: #0284c7 !important;
+}
+
+/* Responsive Header styles */
+@media (max-width: 1100px) {
+  .header-btn-label {
+    display: none !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .header-hide-compact {
+    display: none !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .header-zoom-text {
+    display: none !important;
+  }
+}
