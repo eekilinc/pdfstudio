@@ -11,13 +11,14 @@ import type {
 } from './types/pdf';
 import { getSharedPdfDoc, clearPdfCache } from './utils/pdfInit';
 import { createSamplePdf } from './utils/samplePdf';
-import { exportModifiedPdf } from './utils/pdfExport';
+import { exportModifiedPdf, createBlankPdf } from './utils/pdfExport';
 
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
 import { PropertyInspector } from './components/PropertyInspector';
 import { ThumbnailSidebar } from './components/ThumbnailSidebar';
 import { PDFViewer } from './components/PDFViewer';
+import { WelcomeScreen } from './components/WelcomeScreen';
 
 import { SignatureModal } from './components/SignatureModal';
 import { StampModal } from './components/StampModal';
@@ -147,6 +148,17 @@ export function App() {
     };
   }, []);
 
+  const addToRecentFiles = (name: string, path: string) => {
+    try {
+      const stored = localStorage.getItem('pdfstudio_recent_files');
+      let recents: Array<{ name: string; path: string; lastOpened: number }> = stored ? JSON.parse(stored) : [];
+      recents = recents.filter(f => f.path !== path);
+      recents.unshift({ name, path, lastOpened: Date.now() });
+      if (recents.length > 6) recents = recents.slice(0, 6);
+      localStorage.setItem('pdfstudio_recent_files', JSON.stringify(recents));
+    } catch (_) {}
+  };
+
   const loadStartupFileOrSample = async () => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
@@ -156,13 +168,20 @@ export function App() {
         const buffer = new Uint8Array(fileBytes).buffer;
         const filename = startupPath.split(/[\\/]/).pop() || 'Belge.pdf';
         setCurrentFilePath(startupPath);
+        addToRecentFiles(filename, startupPath);
         await parseAndSetPdf(buffer, filename, fileBytes.length);
         return;
       }
     } catch (_) {
       // In browser or standalone mode without CLI args
     }
-    loadSampleDocument();
+
+    // Check if this is the first launch ever
+    const hasLaunchedBefore = localStorage.getItem('pdfstudio_has_launched');
+    if (!hasLaunchedBefore) {
+      localStorage.setItem('pdfstudio_has_launched', 'true');
+      loadSampleDocument();
+    }
   };
 
   // Helper to commit state into Undo/Redo stack
@@ -241,10 +260,59 @@ export function App() {
     }
   };
 
+  const handleCreateBlankPdf = async () => {
+    try {
+      const blankBytes = await createBlankPdf();
+      const buffer = blankBytes.buffer.slice(blankBytes.byteOffset, blankBytes.byteOffset + blankBytes.byteLength);
+      setCurrentFilePath(null);
+      await parseAndSetPdf(buffer as ArrayBuffer, 'Yeni_Belge.pdf', blankBytes.byteLength);
+      showToast('✓ Yeni boş belge oluşturuldu', 'info');
+    } catch (err) {
+      console.error('Blank PDF error:', err);
+    }
+  };
+
+  const handleOpenRecentFile = async (path: string) => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const fileBytes = await invoke<number[]>('read_pdf_file', { path });
+      const buffer = new Uint8Array(fileBytes).buffer;
+      const filename = path.split(/[\\/]/).pop() || 'Belge.pdf';
+      setCurrentFilePath(path);
+      addToRecentFiles(filename, path);
+      await parseAndSetPdf(buffer, filename, fileBytes.length);
+      showToast(`Açıldı: ${filename}`, 'info');
+    } catch (err) {
+      console.error('Failed to open recent file:', err);
+      alert('Dosya açılamadı veya taşınmış olabilir: ' + path);
+    }
+  };
+
+  const handleCloseDocument = () => {
+    setDocState({
+      filename: '',
+      fileSize: 0,
+      data: null,
+      numPages: 0,
+      pages: [],
+      pageOrder: [],
+      annotations: {},
+    });
+    setCurrentFilePath(null);
+    setSelectedAnnotation(null);
+    setHistory([]);
+    setHistoryIndex(-1);
+    setSearchMatches([]);
+    setActiveMatchIndex(-1);
+  };
+
   const handleOpenPdfFile = async (file: File) => {
     const arrayBuffer = await file.arrayBuffer();
     const filePath = (file as any).path || null;
     setCurrentFilePath(filePath);
+    if (filePath) {
+      addToRecentFiles(file.name, filePath);
+    }
     await parseAndSetPdf(arrayBuffer, file.name, file.size);
     showToast(`Açıldı: ${file.name}`, 'info');
   };
@@ -258,6 +326,7 @@ export function App() {
         const buffer = new Uint8Array(fileBytes).buffer;
         const filename = chosenPath.split(/[\\/]/).pop() || 'Belge.pdf';
         setCurrentFilePath(chosenPath);
+        addToRecentFiles(filename, chosenPath);
         await parseAndSetPdf(buffer, filename, fileBytes.length);
         showToast(`Açıldı: ${filename}`, 'info');
       }
@@ -717,6 +786,7 @@ export function App() {
         onPageNumberChange={handlePageNumberJump}
         onOpenPdf={handleOpenPdfFile}
         onOpenNativePdf={handleOpenNativePdf}
+        onCloseDocument={handleCloseDocument}
         onLoadSample={loadSampleDocument}
         onSavePdf={handleSavePdf}
         onSaveAsPdf={handleSaveAsPdf}
@@ -749,101 +819,116 @@ export function App() {
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      {/* 2. Main Tool Palette */}
-      <Toolbar
-        activeConfig={activeConfig}
-        onSelectTool={(tool) => {
-          setActiveConfig((prev) => ({ ...prev, tool }));
-          if (tool !== 'select') setSelectedAnnotation(null);
-        }}
-        onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
-        onOpenStampModal={() => setIsStampModalOpen(true)}
-        onOpenOcrModal={() => setIsOcrModalOpen(true)}
-        onInsertImage={handleInsertImage}
-      />
-
-      {/* 3. Dynamic Property Inspector */}
-      <PropertyInspector
-        activeConfig={activeConfig}
-        selectedAnnotation={selectedAnnotation}
-        onUpdateConfig={(partial) => setActiveConfig((prev) => ({ ...prev, ...partial }))}
-        onUpdateSelectedAnnotation={(partial) => {
-          if (selectedAnnotation) {
-            handleUpdateAnnotation(selectedAnnotation.pageIndex, {
-              ...selectedAnnotation,
-              ...partial,
-            } as Annotation);
-          }
-        }}
-        onDeleteSelectedAnnotation={handleDeleteSelectedAnnotation}
-        onDuplicateSelectedAnnotation={handleDuplicateSelectedAnnotation}
-        onBringForward={handleBringForward}
-        onSendBackward={handleSendBackward}
-      />
-
-      {/* 4. Search Bar Overlay */}
-      <SearchBar
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        docState={docState}
-        onMatchesFound={(matches, initialActive) => {
-          setSearchMatches(matches);
-          setActiveMatchIndex(initialActive);
-          if (matches.length > 0 && matches[0]) {
-            setCurrentPageIndex(matches[0].pageIndex);
-          }
-        }}
-        onActiveMatchChange={handleActiveMatchChange}
-        activeMatchIndex={activeMatchIndex}
-      />
-
-      {/* 5. Central Workspace Area (Sidebar + Canvas Viewer) */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        {sidebarOpen && (
-          <ThumbnailSidebar
-            docState={docState}
-            currentPageIndex={currentPageIndex}
-            onSelectPage={setCurrentPageIndex}
-            onRotatePage={handleRotatePage}
-            onDuplicatePage={handleDuplicatePage}
-            onDeletePage={handleDeletePage}
-            onMovePage={handleMovePage}
-            onAddBlankPage={handleAddBlankPage}
-          />
-        )}
-
-        <PDFViewer
-          docState={docState}
-          currentPageIndex={currentPageIndex}
-          onPageChange={setCurrentPageIndex}
-          activeConfig={activeConfig}
-          selectedAnnotation={selectedAnnotation}
-          onSelectAnnotation={setSelectedAnnotation}
-          onAddAnnotation={handleAddAnnotation}
-          onUpdateAnnotation={handleUpdateAnnotation}
-          onDeleteAnnotation={handleDeleteAnnotationById}
-          zoom={zoom}
-          pendingSignatureData={pendingSignatureData}
-          pendingStampData={pendingStampData}
-          pendingImageData={pendingImageData}
-          onConsumePendingSignature={() => {
-            setPendingSignatureData(null);
-            setActiveConfig((prev) => ({ ...prev, tool: 'select' }));
-          }}
-          onConsumePendingStamp={() => {
-            setPendingStampData(null);
-            setActiveConfig((prev) => ({ ...prev, tool: 'select' }));
-          }}
-          onConsumePendingImage={() => {
-            setPendingImageData(null);
-            setActiveConfig((prev) => ({ ...prev, tool: 'select' }));
-          }}
-          searchMatches={searchMatches}
-          activeMatchIndex={activeMatchIndex}
-          readerFilter={readerFilter}
-          onZoomChange={setZoom}
+      {/* 2. When No PDF is Loaded: Gorgeous Welcome Dashboard */}
+      {!docState.data ? (
+        <WelcomeScreen
+          onOpenPdfFile={handleOpenPdfFile}
+          onOpenNativePdf={handleOpenNativePdf}
+          onOpenRecentFile={handleOpenRecentFile}
+          onCreateBlankPdf={handleCreateBlankPdf}
+          onLoadSample={loadSampleDocument}
+          onOpenMergeModal={() => setIsMergeModalOpen(true)}
+          onOpenSplitModal={() => setIsSplitModalOpen(true)}
         />
-      </div>
+      ) : (
+        <>
+          {/* Main Tool Palette */}
+          <Toolbar
+            activeConfig={activeConfig}
+            onSelectTool={(tool) => {
+              setActiveConfig((prev) => ({ ...prev, tool }));
+              if (tool !== 'select') setSelectedAnnotation(null);
+            }}
+            onOpenSignatureModal={() => setIsSignatureModalOpen(true)}
+            onOpenStampModal={() => setIsStampModalOpen(true)}
+            onOpenOcrModal={() => setIsOcrModalOpen(true)}
+            onInsertImage={handleInsertImage}
+          />
+
+          {/* Dynamic Property Inspector */}
+          <PropertyInspector
+            activeConfig={activeConfig}
+            selectedAnnotation={selectedAnnotation}
+            onUpdateConfig={(partial) => setActiveConfig((prev) => ({ ...prev, ...partial }))}
+            onUpdateSelectedAnnotation={(partial) => {
+              if (selectedAnnotation) {
+                handleUpdateAnnotation(selectedAnnotation.pageIndex, {
+                  ...selectedAnnotation,
+                  ...partial,
+                } as Annotation);
+              }
+            }}
+            onDeleteSelectedAnnotation={handleDeleteSelectedAnnotation}
+            onDuplicateSelectedAnnotation={handleDuplicateSelectedAnnotation}
+            onBringForward={handleBringForward}
+            onSendBackward={handleSendBackward}
+          />
+
+          {/* Search Bar Overlay */}
+          <SearchBar
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            docState={docState}
+            onMatchesFound={(matches, initialActive) => {
+              setSearchMatches(matches);
+              setActiveMatchIndex(initialActive);
+              if (matches.length > 0 && matches[0]) {
+                setCurrentPageIndex(matches[0].pageIndex);
+              }
+            }}
+            onActiveMatchChange={handleActiveMatchChange}
+            activeMatchIndex={activeMatchIndex}
+          />
+
+          {/* Central Workspace Area (Sidebar + Canvas Viewer) */}
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+            {sidebarOpen && (
+              <ThumbnailSidebar
+                docState={docState}
+                currentPageIndex={currentPageIndex}
+                onSelectPage={setCurrentPageIndex}
+                onRotatePage={handleRotatePage}
+                onDuplicatePage={handleDuplicatePage}
+                onDeletePage={handleDeletePage}
+                onMovePage={handleMovePage}
+                onAddBlankPage={handleAddBlankPage}
+              />
+            )}
+
+            <PDFViewer
+              docState={docState}
+              currentPageIndex={currentPageIndex}
+              onPageChange={setCurrentPageIndex}
+              activeConfig={activeConfig}
+              selectedAnnotation={selectedAnnotation}
+              onSelectAnnotation={setSelectedAnnotation}
+              onAddAnnotation={handleAddAnnotation}
+              onUpdateAnnotation={handleUpdateAnnotation}
+              onDeleteAnnotation={handleDeleteAnnotationById}
+              zoom={zoom}
+              pendingSignatureData={pendingSignatureData}
+              pendingStampData={pendingStampData}
+              pendingImageData={pendingImageData}
+              onConsumePendingSignature={() => {
+                setPendingSignatureData(null);
+                setActiveConfig((prev) => ({ ...prev, tool: 'select' }));
+              }}
+              onConsumePendingStamp={() => {
+                setPendingStampData(null);
+                setActiveConfig((prev) => ({ ...prev, tool: 'select' }));
+              }}
+              onConsumePendingImage={() => {
+                setPendingImageData(null);
+                setActiveConfig((prev) => ({ ...prev, tool: 'select' }));
+              }}
+              readerFilter={readerFilter}
+              searchMatches={searchMatches}
+              activeMatchIndex={activeMatchIndex}
+              onZoomChange={setZoom}
+            />
+          </div>
+        </>
+      )}
 
       {/* 6. Modals */}
       <SignatureModal

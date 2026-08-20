@@ -39,6 +39,7 @@ interface HeaderProps {
   onPageNumberChange: (pageNumber: number) => void;
   onOpenPdf: (file: File) => void;
   onOpenNativePdf?: () => void;
+  onCloseDocument?: () => void;
   onLoadSample: () => void;
   onSavePdf: () => void;
   onSaveAsPdf: () => void;
@@ -78,6 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
   onPageNumberChange,
   onOpenPdf,
   onOpenNativePdf,
+  onCloseDocument,
   onLoadSample,
   onSavePdf,
   onSaveAsPdf,
@@ -351,6 +353,19 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Lock size={14} color="#a855f7" /> PDF Parola & Şifreleme
               </button>
+
+              {docState.data && onCloseDocument && (
+                <>
+                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }} />
+                  <button
+                    onClick={() => { onCloseDocument(); setToolsDropdownOpen(false); }}
+                    className="btn-ghost"
+                    style={{ justifyContent: 'flex-start', padding: '7px 10px', fontSize: '12px', gap: '8px', color: '#f43f5e' }}
+                  >
+                    <FolderOpen size={14} /> Belgeyi Kapat (Ana Sayfa)
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
