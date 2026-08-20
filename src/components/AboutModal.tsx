@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { APP_VERSION, GITHUB_REPO_URL } from '../version';
 import { 
   X, 
   Sparkles, 
@@ -72,7 +73,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
   ];
 
   const handleOpenGithub = async () => {
-    const url = 'https://github.com/eekilinc/pdfstudio';
+    const url = GITHUB_REPO_URL;
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('open_url', { url });
@@ -109,7 +110,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             <div>
               <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>PDF Studio Pro</span>
-                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-primary)', padding: '1px 5px', borderRadius: '4px' }}>v1.0.0</span>
+                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.15)', color: 'var(--accent-primary)', padding: '1px 5px', borderRadius: '4px' }}>v{APP_VERSION}</span>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 Yüksek Performanslı Masaüstü PDF Düzenleme Paketi
