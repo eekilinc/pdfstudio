@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Copy, Check, Edit3, Globe, Loader2 } from 'lucide-react';
+import { Copy, Check, Edit3, Globe, Loader2, Trash2 } from 'lucide-react';
 import type { 
   PDFDocumentState, 
   ActiveToolConfig, 
@@ -315,10 +315,34 @@ const PageItem: React.FC<PageItemProps> = ({
 
   // Text selection, copy & translation state
   const [selectedText, setSelectedText] = useState('');
-  const [selectionPosition, setSelectionPosition] = useState<{ x: number; y: number } | null>(null);
-  const [copiedFeedback, setCopiedFeedback] = useState(false);
+  const [selectionPosition, setSelectionPosition] = useState<Point | null>(null);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
+  const [renderTrigger, setRenderTrigger] = useState(0);
+  const imageCache = useRef<Map<string, HTMLImageElement>>(new Map());
+
+  const getPixelColorsAt = (canvas: HTMLCanvasElement | null, pdfX: number, pdfY: number, width: number, height: number): { bg: string; fg: string } => {
+    if (!canvas) return { bg: '#ffffff', fg: '#0f172a' };
+    try {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return { bg: '#ffffff', fg: '#0f172a' };
+      const scaleX = canvas.width / width;
+      const scaleY = canvas.height / height;
+      const sampleX = Math.max(0, Math.min(canvas.width - 1, Math.floor((pdfX - 2) * scaleX)));
+      const sampleY = Math.max(0, Math.min(canvas.height - 1, Math.floor((pdfY - 2) * scaleY)));
+      const pixel = ctx.getImageData(sampleX, sampleY, 1, 1).data;
+      const r = pixel[0];
+      const g = pixel[1];
+      const b = pixel[2];
+      const bg = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      const fg = lum < 0.5 ? '#ffffff' : '#0f172a';
+      return { bg, fg };
+    } catch (_) {
+      return { bg: '#ffffff', fg: '#0f172a' };
+    }
+  };
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingPoints, setDrawingPoints] = useState<Point[]>([]);
@@ -654,33 +678,21 @@ const PageItem: React.FC<PageItemProps> = ({
           break;
         }
 
-        case 'signature': {
-          const sig = ann as SignatureAnnotation;
-          if (sig.imageData) {
-            const img = new Image();
-            img.src = sig.imageData;
-            if (img.complete) {
-              ctx.drawImage(img, sig.x, sig.y, sig.width, sig.height);
-            } else {
-              img.onload = () => {
-                ctx.drawImage(img, sig.x, sig.y, sig.width, sig.height);
-              };
-            }
-          }
-          break;
-        }
-
+        case 'signature':
         case 'image': {
-          const imgAnn = ann as ImageAnnotation;
+          const imgAnn = ann as (SignatureAnnotation | ImageAnnotation);
           if (imgAnn.imageData) {
-            const img = new Image();
-            img.src = imgAnn.imageData;
-            if (img.complete) {
-              ctx.drawImage(img, imgAnn.x, imgAnn.y, imgAnn.width, imgAnn.height);
-            } else {
+            let img = imageCache.current.get(imgAnn.imageData);
+            if (!img) {
+              img = new Image();
+              img.src = imgAnn.imageData;
               img.onload = () => {
-                ctx.drawImage(img, imgAnn.x, imgAnn.y, imgAnn.width, imgAnn.height);
+                setRenderTrigger((t) => t + 1);
               };
+              imageCache.current.set(imgAnn.imageData, img);
+            }
+            if (img.complete && img.naturalWidth > 0) {
+              ctx.drawImage(img, imgAnn.x, imgAnn.y, imgAnn.width, imgAnn.height);
             }
           }
           break;
@@ -858,7 +870,7 @@ const PageItem: React.FC<PageItemProps> = ({
       }
       ctx.restore();
     }
-  }, [annotations, selectedAnnotation, currentShapePreview, isDrawing, drawingPoints, zoom, editingTextId, activeConfig, pageWidth, pageHeight, rawWidth, rawHeight, searchMatches, activeMatchIndex]);
+  }, [annotations, selectedAnnotation, currentShapePreview, isDrawing, drawingPoints, zoom, editingTextId, activeConfig, pageWidth, pageHeight, rawWidth, rawHeight, searchMatches, activeMatchIndex, renderTrigger]);
 
   const getPdfCoords = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
     const rect = overlayCanvasRef.current?.getBoundingClientRect();
@@ -972,6 +984,7 @@ const PageItem: React.FC<PageItemProps> = ({
 
   // Direct Text Edit click handler
   const handleEditOriginalTextItem = (item: ExtractedPdfTextItem) => {
+    const colors = getPixelColorsAt(bgCanvasRef.current, item.x, item.y, pageWidth, pageHeight);
     const newId = Math.random().toString(36).substring(2, 9);
     const newTextAnn: TextAnnotation = {
       id: newId,
@@ -979,18 +992,49 @@ const PageItem: React.FC<PageItemProps> = ({
       type: 'text',
       x: item.x,
       y: item.y,
-      width: Math.max(item.width + 16, 60),
-      height: Math.max(item.height, 22),
+      width: Math.max(item.width + 12, 70),
+      height: Math.max(item.height + 4, 22),
       text: item.str,
       fontSize: item.fontSize,
       fontFamily: item.fontFamily || 'Inter, sans-serif',
-      color: '#0f172a',
-      backgroundColor: '#ffffff',
+      color: colors.fg,
+      backgroundColor: colors.bg,
     };
 
     onAddAnnotation(newTextAnn);
     onSelectAnnotation(newTextAnn);
     setEditingTextId(newId);
+  };
+
+  const handleDeleteOriginalTextItem = (item: ExtractedPdfTextItem) => {
+    const colors = getPixelColorsAt(bgCanvasRef.current, item.x, item.y, pageWidth, pageHeight);
+    const newId = Math.random().toString(36).substring(2, 9);
+    const maskAnn: TextAnnotation = {
+      id: newId,
+      pageIndex: page.pageIndex,
+      type: 'text',
+      x: item.x - 2,
+      y: item.y - 2,
+      width: item.width + 4,
+      height: item.height + 4,
+      text: '',
+      fontSize: item.fontSize,
+      fontFamily: 'Inter, sans-serif',
+      color: 'transparent',
+      backgroundColor: colors.bg,
+    };
+
+    onAddAnnotation(maskAnn);
+    onSelectAnnotation(null);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const pt = getPdfCoords(e);
+    const hit = findHitAnnotation(pt);
+    if (hit && hit.type === 'text') {
+      onSelectAnnotation(hit);
+      setEditingTextId(hit.id);
+    }
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1022,17 +1066,26 @@ const PageItem: React.FC<PageItemProps> = ({
     }
 
     if (pendingImageData) {
-      onAddAnnotation({
-        id: Math.random().toString(36).substring(2, 9),
-        pageIndex: page.pageIndex,
-        type: 'image',
-        x: pt.x - 80,
-        y: pt.y - 80,
-        width: 160,
-        height: 160,
-        color: 'transparent',
-        imageData: pendingImageData,
-      } as ImageAnnotation);
+      const img = new Image();
+      img.onload = () => {
+        const aspect = (img.naturalWidth || 1) / (img.naturalHeight || 1);
+        const targetW = Math.min(220, Math.max(80, img.naturalWidth || 160));
+        const targetH = targetW / aspect;
+        const newImgAnn: ImageAnnotation = {
+          id: Math.random().toString(36).substring(2, 9),
+          pageIndex: page.pageIndex,
+          type: 'image',
+          x: pt.x - targetW / 2,
+          y: pt.y - targetH / 2,
+          width: targetW,
+          height: targetH,
+          color: 'transparent',
+          imageData: pendingImageData,
+        };
+        onAddAnnotation(newImgAnn);
+        onSelectAnnotation(newImgAnn);
+      };
+      img.src = pendingImageData;
       onConsumePendingImage();
       return;
     }
@@ -1094,6 +1147,7 @@ const PageItem: React.FC<PageItemProps> = ({
     }
 
     if (activeConfig.tool === 'text') {
+      const colors = getPixelColorsAt(bgCanvasRef.current, pt.x, pt.y, pageWidth, pageHeight);
       const newId = Math.random().toString(36).substring(2, 9);
       const newTextAnn: TextAnnotation = {
         id: newId,
@@ -1101,14 +1155,14 @@ const PageItem: React.FC<PageItemProps> = ({
         type: 'text',
         x: pt.x,
         y: pt.y,
-        width: 160,
-        height: 32,
+        width: 140,
+        height: 30,
         text: 'Metin buraya...',
-        fontSize: activeConfig.fontSize || 14,
+        fontSize: activeConfig.fontSize || 16,
         fontFamily: activeConfig.fontFamily || 'Inter, sans-serif',
         fontWeight: activeConfig.fontWeight,
         fontStyle: activeConfig.fontStyle,
-        color: activeConfig.color,
+        color: activeConfig.color && activeConfig.color !== '#0f172a' ? activeConfig.color : colors.fg,
       };
       onAddAnnotation(newTextAnn);
       onSelectAnnotation(newTextAnn);
@@ -1472,7 +1526,6 @@ const PageItem: React.FC<PageItemProps> = ({
               }}
               onMouseEnter={() => setHoveredTextId(item.id)}
               onMouseLeave={() => setHoveredTextId(null)}
-              data-tooltip="Düzenlemek İçin Tıklayın"
               style={{
                 position: 'absolute',
                 left: `${item.x * zoom}px`,
@@ -1486,7 +1539,67 @@ const PageItem: React.FC<PageItemProps> = ({
                 transition: 'all 0.1s ease',
                 boxShadow: hoveredTextId === item.id ? '0 0 10px rgba(56, 189, 248, 0.4)' : 'none',
               }}
-            />
+            >
+              {hoveredTextId === item.id && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: 0,
+                    marginBottom: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    padding: '3px 6px',
+                    borderRadius: '6px',
+                    boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    zIndex: 60,
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => handleEditOriginalTextItem(item)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: 'rgba(56, 189, 248, 0.25)',
+                      color: '#38bdf8',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '2px 7px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Edit3 size={11} /> Düzenle
+                  </button>
+                  <button
+                    onClick={() => handleDeleteOriginalTextItem(item)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: 'rgba(239, 68, 68, 0.25)',
+                      color: '#f87171',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '2px 7px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Trash2 size={11} /> Metni Sil
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -1497,6 +1610,7 @@ const PageItem: React.FC<PageItemProps> = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
         style={{
           position: 'absolute',
           top: 0,
@@ -1509,8 +1623,8 @@ const PageItem: React.FC<PageItemProps> = ({
                 ? (isDraggingAnn ? 'grabbing' : 'default') 
                 : 'crosshair'),
           display: 'block',
-          zIndex: activeConfig.tool === 'edit-text' ? 10 : (activeConfig.tool === 'select' ? 12 : 25),
-          pointerEvents: activeConfig.tool === 'edit-text' || (activeConfig.tool === 'select' && !isDraggingAnn) ? 'none' : 'auto',
+          zIndex: activeConfig.tool === 'edit-text' ? 10 : 25,
+          pointerEvents: activeConfig.tool === 'edit-text' ? 'none' : 'auto',
         }}
       />
 
@@ -1523,33 +1637,58 @@ const PageItem: React.FC<PageItemProps> = ({
           <textarea
             key={ann.id}
             autoFocus
+            placeholder="Metin yazın..."
             value={textAnn.text}
+            onFocus={(e) => {
+              if (textAnn.text) e.target.select();
+            }}
             onChange={(e) => {
+              const val = e.target.value;
+              const lineCount = val.split('\n').length;
+              const maxLineLen = Math.max(...val.split('\n').map(l => l.length), 5);
+              const approxW = Math.max(120, Math.min(600, maxLineLen * (textAnn.fontSize || 14) * 0.65 + 24));
+              const approxH = Math.max(28, lineCount * (textAnn.fontSize || 14) * 1.35 + 8);
               onUpdateAnnotation({
                 ...textAnn,
-                text: e.target.value,
+                text: val,
+                width: approxW,
+                height: approxH,
               });
             }}
-            onBlur={() => setEditingTextId(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
+                e.preventDefault();
+                setEditingTextId(null);
+              }
+            }}
+            onBlur={() => {
+              if (!textAnn.text.trim() && !textAnn.backgroundColor) {
+                onDeleteAnnotation(textAnn.id);
+              }
+              setEditingTextId(null);
+            }}
             style={{
               position: 'absolute',
               left: `${textAnn.x * zoom}px`,
               top: `${textAnn.y * zoom}px`,
               fontSize: `${(textAnn.fontSize || 14) * zoom}px`,
               fontFamily: textAnn.fontFamily || 'Inter, sans-serif',
-              fontWeight: textAnn.fontWeight || 'normal',
+              fontWeight: textAnn.fontWeight === 'bold' ? 700 : 400,
               fontStyle: textAnn.fontStyle || 'normal',
-              color: textAnn.color,
-              background: '#ffffff',
+              color: textAnn.color || '#0f172a',
+              background: textAnn.backgroundColor && textAnn.backgroundColor !== 'transparent' 
+                ? textAnn.backgroundColor 
+                : 'rgba(255, 255, 255, 0.98)',
               border: '2px solid var(--accent-primary)',
-              borderRadius: '2px',
-              padding: '2px 4px',
+              borderRadius: '4px',
+              padding: '4px 6px',
               resize: 'both',
               outline: 'none',
               zIndex: 50,
-              minWidth: '100px',
-              minHeight: '28px',
-              boxShadow: 'var(--shadow-lg)',
+              minWidth: '120px',
+              minHeight: '30px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+              lineHeight: 1.25,
             }}
           />
         );
