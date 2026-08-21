@@ -1,0 +1,640 @@
+import React, { useState } from 'react';
+import { 
+  X, 
+  FileText, 
+  FileSpreadsheet, 
+  Presentation, 
+  FileCode, 
+  Download, 
+  Check, 
+  Loader2, 
+  Sparkles,
+  Layers,
+  FileCheck2
+} from 'lucide-react';
+import type { PDFDocumentState } from '../types/pdf';
+import { getSharedPdfDoc } from '../utils/pdfInit';
+
+interface ExportOfficeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  docState: PDFDocumentState;
+}
+
+type ExportFormat = 'docx' | 'xlsx' | 'pptx' | 'txt' | 'md' | 'html';
+
+export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
+  isOpen,
+  onClose,
+  docState,
+}) => {
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('docx');
+  const [includePageNumbers, setIncludePageNumbers] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportedSuccess, setExportedSuccess] = useState(false);
+  const [pageRangeMode, setPageRangeMode] = useState<'all' | 'custom'>('all');
+  const [customPages, setCustomPages] = useState('1');
+
+  if (!isOpen) return null;
+
+  const formats: Array<{
+    id: ExportFormat;
+    title: string;
+    ext: string;
+    desc: string;
+    icon: React.ElementType;
+    color: string;
+    bg: string;
+  }> = [
+    {
+      id: 'docx',
+      title: 'Microsoft Word',
+      ext: '.docx / .doc',
+      desc: 'Başlıklar, paragraflar ve sayfa düzenini koruyarak düzenlenebilir Word belgesine dönüştürür.',
+      icon: FileText,
+      color: '#2563eb',
+      bg: 'rgba(37, 99, 235, 0.15)',
+    },
+    {
+      id: 'xlsx',
+      title: 'Microsoft Excel / CSV',
+      ext: '.xlsx / .csv',
+      desc: 'Belgedeki tablo, sayısal ve liste verilerini satır/sütun tablosu halinde dışa aktarır.',
+      icon: FileSpreadsheet,
+      color: '#16a34a',
+      bg: 'rgba(22, 163, 74, 0.15)',
+    },
+    {
+      id: 'pptx',
+      title: 'PowerPoint Sunumu',
+      ext: '.pptx / HTML Slides',
+      desc: 'Her PDF sayfasını bağımsız bir sunum slaytına ve görsel sunum formatına dönüştürür.',
+      icon: Presentation,
+      color: '#ea580c',
+      bg: 'rgba(234, 88, 12, 0.15)',
+    },
+    {
+      id: 'txt',
+      title: 'Düz Metin (UTF-8)',
+      ext: '.txt',
+      desc: 'Tüm metin içeriğini temiz, formatlardan arındırılmış saf metin dosyası olarak kaydeder.',
+      icon: FileCheck2,
+      color: '#64748b',
+      bg: 'rgba(100, 116, 139, 0.15)',
+    },
+    {
+      id: 'md',
+      title: 'Markdown Belgesi',
+      ext: '.md',
+      desc: 'Yazılım ve dokümantasyon için başlık ve listeleri Markdown formatında hazırlar.',
+      icon: FileCode,
+      color: '#8b5cf6',
+      bg: 'rgba(139, 92, 246, 0.15)',
+    },
+    {
+      id: 'html',
+      title: 'HTML Web Sayfası',
+      ext: '.html',
+      desc: 'Tarayıcıda anında görüntülenebilir şık, modern bir web sayfası oluşturur.',
+      icon: Layers,
+      color: '#06b6d4',
+      bg: 'rgba(6, 182, 212, 0.15)',
+    },
+  ];
+
+  const handleExport = async () => {
+    if (!docState.data) return;
+    setIsExporting(true);
+    setExportedSuccess(false);
+
+    try {
+      const pdf = await getSharedPdfDoc(docState.data);
+      if (!pdf) throw new Error('PDF yüklenemedi');
+
+      // Determine which pages to extract
+      let targetPageIndices: number[] = [];
+      const totalPages = pdf.numPages;
+
+      if (pageRangeMode === 'all') {
+        targetPageIndices = Array.from({ length: totalPages }, (_, i) => i + 1);
+      } else {
+        const parts = customPages.split(',').map(s => s.trim());
+        const set = new Set<number>();
+        for (const p of parts) {
+          if (p.includes('-')) {
+            const [start, end] = p.split('-').map(Number);
+            if (!isNaN(start) && !isNaN(end)) {
+              for (let k = Math.max(1, start); k <= Math.min(totalPages, end); k++) {
+                set.add(k);
+              }
+            }
+          } else {
+            const num = Number(p);
+            if (!isNaN(num) && num >= 1 && num <= totalPages) {
+              set.add(num);
+            }
+          }
+        }
+        targetPageIndices = Array.from(set).sort((a, b) => a - b);
+        if (targetPageIndices.length === 0) {
+          targetPageIndices = Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+      }
+
+      // Extract text content from pages
+      const extractedPages: Array<{ pageNum: number; lines: string[] }> = [];
+
+      for (const pageNum of targetPageIndices) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const items = textContent.items as Array<{ str: string; transform: number[] }>;
+
+        const sorted = [...items]
+          .filter(it => it.str && it.str.trim().length > 0)
+          .sort((a, b) => {
+            const yDiff = b.transform[5] - a.transform[5];
+            if (Math.abs(yDiff) > 6) return yDiff;
+            return a.transform[4] - b.transform[4];
+          });
+
+        const lines: string[] = [];
+        let curLine: string[] = [];
+        let lastY: number | null = null;
+
+        sorted.forEach(it => {
+          const y = it.transform[5];
+          if (lastY === null || Math.abs(lastY - y) <= 6) {
+            curLine.push(it.str);
+          } else {
+            if (curLine.length > 0) lines.push(curLine.join(' '));
+            curLine = [it.str];
+          }
+          lastY = y;
+        });
+        if (curLine.length > 0) lines.push(curLine.join(' '));
+
+        extractedPages.push({ pageNum, lines });
+      }
+
+      const baseName = docState.filename.replace(/\.pdf$/i, '') || 'Belge';
+
+      // 1. WORD (.doc / .docx via Office XML MIME format)
+      if (selectedFormat === 'docx') {
+        let bodyHtml = '';
+        extractedPages.forEach((p, idx) => {
+          if (includePageNumbers) {
+            bodyHtml += `<div class="page-header">PDF Studio Pro &bull; Sayfa ${p.pageNum} / ${totalPages}</div>`;
+          }
+          p.lines.forEach((line) => {
+            if (line.length < 50 && (line.toUpperCase() === line || /^\d+\./.test(line))) {
+              bodyHtml += `<h2>${escapeHtml(line)}</h2>`;
+            } else {
+              bodyHtml += `<p>${escapeHtml(line)}</p>`;
+            }
+          });
+          if (idx < extractedPages.length - 1) {
+            bodyHtml += `<div class="page-break"></div><br/>`;
+          }
+        });
+
+        const docHtml = `
+          <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+          <head>
+            <meta charset='utf-8'>
+            <title>${escapeHtml(baseName)}</title>
+            <style>
+              body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; line-height: 1.5; color: #0f172a; margin: 30pt; }
+              h1 { font-size: 18pt; color: #1e3a8a; margin-top: 16pt; margin-bottom: 6pt; font-weight: bold; }
+              h2 { font-size: 13pt; color: #1e40af; margin-top: 12pt; margin-bottom: 4pt; font-weight: bold; }
+              p { margin-top: 0; margin-bottom: 6pt; text-align: justify; }
+              .page-break { page-break-after: always; }
+              .page-header { font-size: 9pt; color: #64748b; border-bottom: 1px solid #cbd5e1; padding-bottom: 4pt; margin-bottom: 12pt; }
+            </style>
+          </head>
+          <body>
+            <h1>${escapeHtml(baseName)}</h1>
+            <hr style="border: 0; height: 1px; background: #e2e8f0; margin-bottom: 14pt;" />
+            ${bodyHtml}
+          </body>
+          </html>
+        `;
+
+        const blob = new Blob(['\uFEFF' + docHtml], { type: 'application/msword;charset=utf-8' });
+        triggerDownload(blob, `${baseName}.doc`);
+      }
+
+      // 2. EXCEL (.csv with UTF-8 BOM)
+      else if (selectedFormat === 'xlsx') {
+        let csvContent = '\uFEFFSayfa;Satır No;İçerik;Metin Parçaları\n';
+        extractedPages.forEach((p) => {
+          p.lines.forEach((line, lineIdx) => {
+            const sanitized = line.replace(/"/g, '""');
+            csvContent += `"${p.pageNum}";"${lineIdx + 1}";"${sanitized}";"${sanitized.split(' ').slice(0, 3).join(' ')}"\n`;
+          });
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        triggerDownload(blob, `${baseName}_Tablo.csv`);
+      }
+
+      // 3. POWERPOINT (.html slides / presentation format)
+      else if (selectedFormat === 'pptx') {
+        let slidesHtml = '';
+        extractedPages.forEach((p) => {
+          const title = p.lines[0] || `Slayt ${p.pageNum}`;
+          const bodyBullets = p.lines.slice(1).map(l => `<li>${escapeHtml(l)}</li>`).join('');
+
+          slidesHtml += `
+            <div class="slide">
+              <div class="slide-header">
+                <h2>${escapeHtml(title)}</h2>
+                <span class="slide-number">#${p.pageNum}</span>
+              </div>
+              <ul class="slide-body">
+                ${bodyBullets || '<li>İçerik bulunamadı</li>'}
+              </ul>
+              <div class="slide-footer">PDF Studio Pro Sunum Dışa Aktarımı</div>
+            </div>
+          `;
+        });
+
+        const fullPresHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>${escapeHtml(baseName)} - Sunum</title>
+            <style>
+              body { font-family: 'Inter', -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 30px; }
+              .slide { width: 800px; min-height: 450px; background: #1e293b; border-radius: 12px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #334155; position: relative; display: flex; flex-direction: column; }
+              .slide-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #38bdf8; padding-bottom: 12px; margin-bottom: 20px; }
+              .slide-header h2 { margin: 0; font-size: 22px; color: #38bdf8; font-weight: 700; }
+              .slide-number { font-size: 12px; background: #38bdf8; color: #0f172a; padding: 2px 8px; border-radius: 6px; font-weight: bold; }
+              .slide-body { font-size: 15px; line-height: 1.7; color: #e2e8f0; flex: 1; padding-left: 20px; }
+              .slide-body li { margin-bottom: 10px; }
+              .slide-footer { font-size: 11px; color: #64748b; border-top: 1px solid #334155; padding-top: 10px; margin-top: 20px; }
+              @media print { body { background: none; } .slide { page-break-after: always; box-shadow: none; border: 1px solid #ccc; color: #000; background: #fff; } }
+            </style>
+          </head>
+          <body>
+            ${slidesHtml}
+          </body>
+          </html>
+        `;
+
+        const blob = new Blob([fullPresHtml], { type: 'text/html;charset=utf-8' });
+        triggerDownload(blob, `${baseName}_Sunum.html`);
+      }
+
+      // 4. PLAIN TEXT (.txt)
+      else if (selectedFormat === 'txt') {
+        let txt = `============================================================\n`;
+        txt += `PDF STUDIO PRO - METİN DIŞA AKTARIMI\n`;
+        txt += `Belge: ${baseName}.pdf | Toplam Sayfa: ${totalPages}\n`;
+        txt += `Tarih: ${new Date().toLocaleString('tr-TR')}\n`;
+        txt += `============================================================\n\n`;
+
+        extractedPages.forEach((p) => {
+          if (includePageNumbers) {
+            txt += `\n--- SAYFA ${p.pageNum} ---\n\n`;
+          }
+          txt += p.lines.join('\n') + '\n';
+        });
+
+        const blob = new Blob(['\uFEFF' + txt], { type: 'text/plain;charset=utf-8' });
+        triggerDownload(blob, `${baseName}.txt`);
+      }
+
+      // 5. MARKDOWN (.md)
+      else if (selectedFormat === 'md') {
+        let md = `# ${baseName}\n\n`;
+        extractedPages.forEach((p) => {
+          if (includePageNumbers) {
+            md += `\n## Sayfa ${p.pageNum}\n\n`;
+          }
+          p.lines.forEach((l) => {
+            if (l.length < 40 && (l.toUpperCase() === l || /^\d+\./.test(l))) {
+              md += `### ${l}\n\n`;
+            } else {
+              md += `${l}\n\n`;
+            }
+          });
+          md += `---\n`;
+        });
+
+        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+        triggerDownload(blob, `${baseName}.md`);
+      }
+
+      // 6. HTML WEB PAGE (.html)
+      else if (selectedFormat === 'html') {
+        let htmlBody = '';
+        extractedPages.forEach((p) => {
+          htmlBody += `<section class="page-card"><div class="page-badge">Sayfa ${p.pageNum}</div>`;
+          p.lines.forEach((l) => {
+            htmlBody += `<p>${escapeHtml(l)}</p>`;
+          });
+          htmlBody += `</section>`;
+        });
+
+        const fullHtml = `
+          <!DOCTYPE html>
+          <html lang="tr">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${escapeHtml(baseName)}</title>
+            <style>
+              body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #1e293b; max-width: 860px; margin: 0 auto; padding: 40px 20px; line-height: 1.6; }
+              h1 { font-size: 26px; color: #0f172a; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+              .page-card { background: #ffffff; border-radius: 12px; padding: 30px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; position: relative; }
+              .page-badge { position: absolute; top: 16px; right: 16px; background: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 700; padding: 3px 8px; borderRadius: 6px; }
+              p { margin: 0 0 10px 0; }
+            </style>
+          </head>
+          <body>
+            <h1>${escapeHtml(baseName)}</h1>
+            ${htmlBody}
+          </body>
+          </html>
+        `;
+
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        triggerDownload(blob, `${baseName}.html`);
+      }
+
+      setExportedSuccess(true);
+      setTimeout(() => {
+        setIsExporting(false);
+      }, 600);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Dışa aktarma sırasında bir hata oluştu.');
+      setIsExporting(false);
+    }
+  };
+
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const escapeHtml = (str: string) => {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(6px)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel animate-scale-up"
+        style={{
+          width: '680px',
+          maxWidth: '95vw',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden',
+          boxShadow: 'var(--shadow-xl)',
+          border: '1px solid var(--border-color)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <div
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'var(--bg-secondary)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+              }}
+            >
+              <FileSpreadsheet size={20} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Ofis & Format Dışa Aktarma Merkezi
+              </h2>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                PDF belgenizi Word, Excel, PowerPoint ve diğer formatlara dönüştürün
+              </div>
+            </div>
+          </div>
+
+          <button onClick={onClose} className="btn-icon" style={{ width: '28px', height: '28px' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* BODY */}
+        <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          
+          {/* FORMAT SELECTION GRID */}
+          <div>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px', display: 'block' }}>
+              Dışa Aktarılacak Formatı Seçin:
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+              {formats.map((fmt) => {
+                const isSelected = selectedFormat === fmt.id;
+                const IconComponent = fmt.icon;
+                return (
+                  <div
+                    key={fmt.id}
+                    onClick={() => setSelectedFormat(fmt.id)}
+                    style={{
+                      padding: '12px',
+                      borderRadius: 'var(--radius-md)',
+                      border: isSelected ? `2px solid ${fmt.color}` : '1px solid var(--border-color)',
+                      background: isSelected ? fmt.bg : 'var(--bg-tertiary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '26px', height: '26px', borderRadius: '6px', background: fmt.color, color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <IconComponent size={14} />
+                        </div>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {fmt.title}
+                        </span>
+                      </div>
+                      {isSelected && <Check size={16} color={fmt.color} />}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                      {fmt.desc}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* EXPORT OPTIONS */}
+          <div style={{ background: 'var(--bg-secondary)', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Dönüştürme Seçenekleri
+            </div>
+
+            {/* Page Range Selection */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="radio"
+                    name="pageRange"
+                    checked={pageRangeMode === 'all'}
+                    onChange={() => setPageRangeMode('all')}
+                  />
+                  <span>Tüm Sayfalar ({docState.numPages} Sayfa)</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="radio"
+                    name="pageRange"
+                    checked={pageRangeMode === 'custom'}
+                    onChange={() => setPageRangeMode('custom')}
+                  />
+                  <span>Belirli Sayfalar</span>
+                </label>
+              </div>
+
+              {pageRangeMode === 'custom' && (
+                <input
+                  type="text"
+                  value={customPages}
+                  onChange={(e) => setCustomPages(e.target.value)}
+                  placeholder="Örn: 1-3, 5, 8"
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '12px',
+                    width: '200px',
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Include Page Numbers */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)' }}>
+              <input
+                type="checkbox"
+                checked={includePageNumbers}
+                onChange={(e) => setIncludePageNumbers(e.target.checked)}
+              />
+              <span>Sayfa numaralarını ve başlıklarını belgede göster</span>
+            </label>
+          </div>
+
+          {/* PRIVACY BADGE */}
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Sparkles size={13} color="var(--accent-primary)" />
+            <span>Tüm dönüştürme ve formatlama işlemleri %100 yerel cihazınızda çevrimdışı olarak gerçekleştirilir.</span>
+          </div>
+
+        </div>
+
+        {/* FOOTER */}
+        <div
+          style={{
+            padding: '14px 20px',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'var(--bg-secondary)',
+          }}
+        >
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Seçilen: <strong>{formats.find(f => f.id === selectedFormat)?.title}</strong> ({formats.find(f => f.id === selectedFormat)?.ext})
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button onClick={onClose} className="btn-ghost" style={{ fontSize: '13px' }}>
+              İptal
+            </button>
+
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
+              className="btn-primary"
+              style={{
+                fontSize: '13px',
+                padding: '8px 20px',
+                gap: '8px',
+                fontWeight: 600,
+                background: exportedSuccess ? '#059669' : undefined,
+              }}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Dönüştürülüyor...</span>
+                </>
+              ) : exportedSuccess ? (
+                <>
+                  <Check size={16} />
+                  <span>İndirildi!</span>
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  <span>Dışa Aktar</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};

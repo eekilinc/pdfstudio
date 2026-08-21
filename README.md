@@ -53,7 +53,17 @@
 
 ---
 
-### ✂️ 5. Gelişmiş Sayfa & Belge Yönetimi
+### 📤 5. Ofis & Format Dışa Aktarma Merkezi (Export Center)
+* **Microsoft Word (`.docx / .doc`):** Başlıklar, paragraflar, sayfa sonları ve yazı stillerini koruyarak Word formatına dönüştürür.
+* **Microsoft Excel (`.xlsx / .csv`):** Tablo, liste ve sayısal verileri UTF-8 BOM destekli Excel tablosu olarak dışa aktarır.
+* **PowerPoint Sunumu (`.pptx / HTML Slides`):** Her PDF sayfasını bağımsız sunum slaytına dönüştürür.
+* **Düz Metin (`.txt`):** Temiz, sayfa başlıklı saf metin çıktısı verir.
+* **Markdown (`.md`):** Dokümantasyon için başlık ve listeleri Markdown formatında hazırlar.
+* **HTML Sayfası (`.html`):** Şık, modern ve bağımsız web sayfası olarak kaydeder.
+
+---
+
+### ✂️ 6. Gelişmiş Sayfa & Belge Yönetimi
 * **PDF Sayfalarını Bölme & Ayıkla (Split PDF):**
   - Belirli sayfa aralığı çıkarma (`1-5, 8, 12-14`).
   - Her sayfayı tek tek bağımsız PDF yapma.

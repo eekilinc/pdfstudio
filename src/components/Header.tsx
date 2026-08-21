@@ -28,7 +28,8 @@ import {
   Check,
   Scissors,
   Hash,
-  GitCompare
+  GitCompare,
+  FileSpreadsheet
 } from 'lucide-react';
 import type { PDFDocumentState, ReaderFilter } from '../types/pdf';
 
@@ -62,6 +63,7 @@ interface HeaderProps {
   onOpenAboutModal: () => void;
   onOpenWatermarkModal: () => void;
   onOpenExportImageModal: () => void;
+  onOpenExportOfficeModal: () => void;
   onOpenSecurityModal: () => void;
   onOpenCompressModal: () => void;
   readerFilter: ReaderFilter;
@@ -102,6 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAboutModal,
   onOpenWatermarkModal,
   onOpenExportImageModal,
+  onOpenExportOfficeModal,
   onOpenSecurityModal,
   onOpenCompressModal,
   readerFilter,
@@ -336,6 +339,14 @@ export const Header: React.FC<HeaderProps> = ({
                 style={{ justifyContent: 'flex-start', padding: '7px 10px', fontSize: '12px', gap: '8px' }}
               >
                 <ImageIcon size={14} color="#10b981" /> Resim Olarak Kaydet (PNG/JPG)
+              </button>
+
+              <button
+                onClick={() => { onOpenExportOfficeModal(); setToolsDropdownOpen(false); }}
+                className="btn-ghost"
+                style={{ justifyContent: 'flex-start', padding: '7px 10px', fontSize: '12px', gap: '8px' }}
+              >
+                <FileSpreadsheet size={14} color="#3b82f6" /> Ofis Formatlarına Dışa Aktar (Word, Excel, PPT)
               </button>
 
               <button

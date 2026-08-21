@@ -29,6 +29,7 @@ import { AboutModal } from './components/AboutModal';
 import { SearchBar } from './components/SearchBar';
 import { WatermarkModal } from './components/WatermarkModal';
 import { ExportImageModal } from './components/ExportImageModal';
+import { ExportOfficeModal } from './components/ExportOfficeModal';
 import { SecurityModal } from './components/SecurityModal';
 import { CompressModal } from './components/CompressModal';
 import { SplitPdfModal } from './components/SplitPdfModal';
@@ -108,6 +109,7 @@ export function App() {
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
   const [isExportImageModalOpen, setIsExportImageModalOpen] = useState(false);
+  const [isExportOfficeModalOpen, setIsExportOfficeModalOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCompressModalOpen, setIsCompressModalOpen] = useState(false);
   const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
@@ -820,6 +822,7 @@ export function App() {
         onOpenAboutModal={() => setIsAboutModalOpen(true)}
         onOpenWatermarkModal={() => setIsWatermarkModalOpen(true)}
         onOpenExportImageModal={() => setIsExportImageModalOpen(true)}
+        onOpenExportOfficeModal={() => setIsExportOfficeModalOpen(true)}
         onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
         onOpenCompressModal={() => setIsCompressModalOpen(true)}
         readerFilter={readerFilter}
@@ -1025,6 +1028,12 @@ export function App() {
         onClose={() => setIsExportImageModalOpen(false)}
         docState={docState}
         currentPageNumber={currentDisplayPageNumber}
+      />
+
+      <ExportOfficeModal
+        isOpen={isExportOfficeModalOpen}
+        onClose={() => setIsExportOfficeModalOpen(false)}
+        docState={docState}
       />
 
       <SecurityModal

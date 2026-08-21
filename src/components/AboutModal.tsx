@@ -35,7 +35,7 @@ interface AboutModalProps {
   onClose: () => void;
 }
 
-type TabType = 'overview' | 'features' | 'shortcuts';
+type TabType = 'overview' | 'features' | 'shortcuts' | 'licenses';
 
 export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -71,6 +71,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
   const features = [
     { title: 'Doğrudan Metin Düzenleme', desc: 'Orijinal PDF metinlerini anında değiştirin, silin ve yeniden yazın.', icon: FileText, color: '#38bdf8' },
     { title: 'Tesseract OCR Tarama', desc: 'Taranmış resim belgelerini optik karakter tanıma ile düzenlenebilir yapın.', icon: ScanText, color: '#10b981' },
+    { title: 'Ofis Dışa Aktarımı', desc: 'Word (.doc), Excel (.csv), PowerPoint (.html) ve Text formatlarına dönüştürün.', icon: Layers, color: '#3b82f6' },
     { title: 'Sayfaları Böl & Ayıkla', desc: 'Aralık çıkarma, tek sayfa bölme, tek/çift ayrımı veya gruplayarak parçalama.', icon: Scissors, color: '#f43f5e' },
     { title: 'Sayfa Numaralandırma', desc: 'Tüm sayfalara otomatik başlık, altbilgi ve sayfa numarası basın.', icon: Hash, color: '#3b82f6' },
     { title: 'İki PDF Karşılaştırma', desc: 'İki sözleşmeyi yan yana pencerelerde eşzamanlı kaydırarak inceleyin.', icon: GitCompare, color: '#10b981' },
@@ -80,11 +81,61 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
     { title: 'Teknik Mesafe Ölçümü', desc: 'Plan ve krokiler üzerinde iki nokta arasındaki mesafeyi (cm/mm) ölçün.', icon: Ruler, color: '#38bdf8' },
     { title: 'İnteraktif Onay Kutusu', desc: 'Tıklanabilir onay kutuları (checkbox) ekleyin ve yönetin.', icon: CheckSquare, color: '#10b981' },
     { title: 'Canlı Çizim & Fosforlu Kalem', desc: '60 FPS anlık önizleme ile serbest çizim ve satır vurgulama.', icon: PenTool, color: '#f59e0b' },
-    { title: 'Sayfa Yönetimi & Birleştirme', desc: 'Sayfaları sıralama, döndürme, çoğaltma ve birden çok PDF\'i birleştirme.', icon: Layers, color: '#8b5cf6' },
   ];
 
-  const handleOpenGithub = async () => {
-    const url = GITHUB_REPO_URL;
+  const technologies = [
+    {
+      name: 'Tauri 2.0',
+      role: 'Rust Tabanlı Güvenli Masaüstü Mimarisi',
+      license: 'MIT / Apache-2.0',
+      url: 'https://tauri.app',
+      desc: 'Düşük bellek kullanımı, ultra hızlı yerel dosya G/Ç ve donanım hızlandırma sağlar.',
+    },
+    {
+      name: 'PDF.js (Mozilla)',
+      role: 'Web Standartlarında PDF Render Motoru',
+      license: 'Apache-2.0',
+      url: 'https://mozilla.github.io/pdf.js',
+      desc: 'CMap glif motoru ve Web Worker ile yüksek çözünürlüklü sayfa işleme.',
+    },
+    {
+      name: 'pdf-lib',
+      role: 'Vektörel PDF Oluşturma & Sayfa Modifikasyonu',
+      license: 'MIT',
+      url: 'https://pdf-lib.js.org',
+      desc: 'Doğrudan PDF bayt akışı seviyesinde sayfa düzenleme, birleştirme ve şifreleme.',
+    },
+    {
+      name: 'React 19 & TypeScript',
+      role: 'Reaktif Kullanıcı Deneyimi & Tip Güvenliği',
+      license: 'MIT',
+      url: 'https://react.dev',
+      desc: 'Modern bileşen yapısı, anlık durum yönetimi ve hatasız kod mimarisi.',
+    },
+    {
+      name: 'Tesseract.js',
+      role: 'Optik Karakter Tanıma (OCR) Motoru',
+      license: 'Apache-2.0',
+      url: 'https://tesseract.projectnaptha.com',
+      desc: 'Taranmış belgeleri ve resimleri istemci tarafında çevrimdışı metne dönüştürür.',
+    },
+    {
+      name: 'Vite 6',
+      role: 'Yeni Nesil Ön Uç Derleme Sistemi',
+      license: 'MIT',
+      url: 'https://vite.dev',
+      desc: 'Modüler JavaScript paketleme, Hot Module Replacement (HMR) ve optimizasyon.',
+    },
+    {
+      name: 'Lucide Icons',
+      role: 'Modern Vektörel İkon Seti',
+      license: 'ISC',
+      url: 'https://lucide.dev',
+      desc: 'Tüm arayüzde tutarlı, net ve hafif SVG vektör simgeleri.',
+    },
+  ];
+
+  const handleOpenUrl = async (url: string) => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('open_url', { url });
@@ -93,9 +144,13 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleOpenGithub = async () => {
+    handleOpenUrl(GITHUB_REPO_URL);
+  };
+
   return (
     <div className="modal-backdrop">
-      <div className="modal-card animate-fade-in" style={{ width: '640px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal-card animate-fade-in" style={{ width: '680px', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{
           padding: '14px 18px',
@@ -147,7 +202,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        {/* Tab Navigation Navigation Bar */}
+        {/* Tab Navigation Bar */}
         <div style={{
           display: 'flex',
           borderBottom: '1px solid var(--border-color)',
@@ -223,10 +278,34 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             <Keyboard size={14} />
             <span>Kısayollar ({shortcuts.length})</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('licenses')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: activeTab === 'licenses' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'licenses' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              background: 'transparent',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Layers size={14} />
+            <span>Teknolojiler & Lisanslar</span>
+          </button>
         </div>
 
         {/* Tab Content */}
         <div style={{ padding: '16px 18px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="animate-fade-in">
@@ -313,7 +392,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Cpu size={13} color="var(--accent-primary)" />
-                  <span>Tauri 2.0 (Rust) + PDF.js + pdf-lib + Fabric + Vite</span>
+                  <span>Tauri 2.0 (Rust) + PDF.js + pdf-lib + React 19 + Vite</span>
                 </div>
                 <div style={{ color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <CheckCircle2 size={12} />
@@ -381,6 +460,73 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
           )}
+
+          {/* TAB 4: TECHNOLOGIES & LICENSES */}
+          {activeTab === 'licenses' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }} className="animate-fade-in">
+              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                PDF Studio Pro, aşağıdaki güvenilir açık kaynaklı teknolojiler ve kütüphaneler üzerine inşa edilmiştir:
+              </div>
+
+              {technologies.map((tech, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {tech.name}
+                      </span>
+                      <span style={{
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10b981',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                      }}>
+                        {tech.license}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: 500 }}>
+                      {tech.role}
+                    </div>
+                    <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                      {tech.desc}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleOpenUrl(tech.url)}
+                    className="btn-ghost"
+                    data-tooltip="Resmi Siteyi / Dokümantasyonu Aç"
+                    style={{
+                      padding: '5px 8px',
+                      fontSize: '11px',
+                      gap: '4px',
+                      color: 'var(--text-primary)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span>Resmi Site</span>
+                    <ExternalLink size={12} style={{ opacity: 0.7 }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
         </div>
 
         {/* Footer */}
@@ -394,7 +540,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
           fontSize: '11px',
         }}>
           <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>© 2026 PDF Studio Pro • eekilinc</span>
+            <span>© 2026 PDF Studio Pro • MIT Lisansı</span>
           </div>
 
           <button onClick={onClose} className="btn-primary" style={{ padding: '5px 16px', fontSize: '11.5px' }}>
