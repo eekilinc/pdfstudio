@@ -10,7 +10,8 @@ import {
   Loader2, 
   Sparkles,
   Layers,
-  FileCheck2
+  FileCheck2,
+  FolderOpen
 } from 'lucide-react';
 import type { PDFDocumentState } from '../types/pdf';
 import { getSharedPdfDoc } from '../utils/pdfInit';
@@ -22,6 +23,7 @@ interface ExportOfficeModalProps {
 }
 
 type ExportFormat = 'docx' | 'xlsx' | 'pptx' | 'txt' | 'md' | 'html';
+type SaveLocationMode = 'ask' | 'downloads';
 
 export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
   isOpen,
@@ -31,9 +33,10 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('docx');
   const [includePageNumbers, setIncludePageNumbers] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [exportedSuccess, setExportedSuccess] = useState(false);
+  const [exportedSuccess, setExportedSuccess] = useState<string | null>(null);
   const [pageRangeMode, setPageRangeMode] = useState<'all' | 'custom'>('all');
   const [customPages, setCustomPages] = useState('1');
+  const [saveLocationMode, setSaveLocationMode] = useState<SaveLocationMode>('ask');
 
   if (!isOpen) return null;
 
@@ -41,6 +44,8 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
     id: ExportFormat;
     title: string;
     ext: string;
+    filterDesc: string;
+    filterExt: string;
     desc: string;
     icon: React.ElementType;
     color: string;
@@ -49,7 +54,9 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
     {
       id: 'docx',
       title: 'Microsoft Word',
-      ext: '.docx / .doc',
+      ext: '.doc / .docx',
+      filterDesc: 'Word Belgesi',
+      filterExt: 'doc',
       desc: 'Başlıklar, paragraflar ve sayfa düzenini koruyarak düzenlenebilir Word belgesine dönüştürür.',
       icon: FileText,
       color: '#2563eb',
@@ -58,7 +65,9 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
     {
       id: 'xlsx',
       title: 'Microsoft Excel / CSV',
-      ext: '.xlsx / .csv',
+      ext: '.csv / .xlsx',
+      filterDesc: 'Excel / CSV Tablosu',
+      filterExt: 'csv',
       desc: 'Belgedeki tablo, sayısal ve liste verilerini satır/sütun tablosu halinde dışa aktarır.',
       icon: FileSpreadsheet,
       color: '#16a34a',
@@ -67,7 +76,9 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
     {
       id: 'pptx',
       title: 'PowerPoint Sunumu',
-      ext: '.pptx / HTML Slides',
+      ext: '.html / .pptx',
+      filterDesc: 'Sunum Dosyası',
+      filterExt: 'html',
       desc: 'Her PDF sayfasını bağımsız bir sunum slaytına ve görsel sunum formatına dönüştürür.',
       icon: Presentation,
       color: '#ea580c',
@@ -77,6 +88,8 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
       id: 'txt',
       title: 'Düz Metin (UTF-8)',
       ext: '.txt',
+      filterDesc: 'Metin Dosyası',
+      filterExt: 'txt',
       desc: 'Tüm metin içeriğini temiz, formatlardan arındırılmış saf metin dosyası olarak kaydeder.',
       icon: FileCheck2,
       color: '#64748b',
@@ -86,6 +99,8 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
       id: 'md',
       title: 'Markdown Belgesi',
       ext: '.md',
+      filterDesc: 'Markdown Belgesi',
+      filterExt: 'md',
       desc: 'Yazılım ve dokümantasyon için başlık ve listeleri Markdown formatında hazırlar.',
       icon: FileCode,
       color: '#8b5cf6',
@@ -95,6 +110,8 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
       id: 'html',
       title: 'HTML Web Sayfası',
       ext: '.html',
+      filterDesc: 'HTML Web Sayfası',
+      filterExt: 'html',
       desc: 'Tarayıcıda anında görüntülenebilir şık, modern bir web sayfası oluşturur.',
       icon: Layers,
       color: '#06b6d4',
@@ -105,13 +122,13 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
   const handleExport = async () => {
     if (!docState.data) return;
     setIsExporting(true);
-    setExportedSuccess(false);
+    setExportedSuccess(null);
 
     try {
       const pdf = await getSharedPdfDoc(docState.data);
       if (!pdf) throw new Error('PDF yüklenemedi');
 
-      // Determine which pages to extract
+      // Determine target pages
       let targetPageIndices: number[] = [];
       const totalPages = pdf.numPages;
 
@@ -177,9 +194,15 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
       }
 
       const baseName = docState.filename.replace(/\.pdf$/i, '') || 'Belge';
+      const currentFmt = formats.find(f => f.id === selectedFormat)!;
+      let outputContent = '';
+      let defaultFileName = '';
+      let mimeType = 'text/plain;charset=utf-8';
 
-      // 1. WORD (.doc / .docx via Office XML MIME format)
+      // 1. WORD (.doc / .docx)
       if (selectedFormat === 'docx') {
+        defaultFileName = `${baseName}.doc`;
+        mimeType = 'application/msword;charset=utf-8';
         let bodyHtml = '';
         extractedPages.forEach((p, idx) => {
           if (includePageNumbers) {
@@ -197,7 +220,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           }
         });
 
-        const docHtml = `
+        outputContent = `\uFEFF
           <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
           <head>
             <meta charset='utf-8'>
@@ -218,27 +241,26 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           </body>
           </html>
         `;
-
-        const blob = new Blob(['\uFEFF' + docHtml], { type: 'application/msword;charset=utf-8' });
-        triggerDownload(blob, `${baseName}.doc`);
       }
 
       // 2. EXCEL (.csv with UTF-8 BOM)
       else if (selectedFormat === 'xlsx') {
-        let csvContent = '\uFEFFSayfa;Satır No;İçerik;Metin Parçaları\n';
+        defaultFileName = `${baseName}_Tablo.csv`;
+        mimeType = 'text/csv;charset=utf-8;';
+        let csv = '\uFEFFSayfa;Satır No;İçerik;Metin Parçaları\n';
         extractedPages.forEach((p) => {
           p.lines.forEach((line, lineIdx) => {
             const sanitized = line.replace(/"/g, '""');
-            csvContent += `"${p.pageNum}";"${lineIdx + 1}";"${sanitized}";"${sanitized.split(' ').slice(0, 3).join(' ')}"\n`;
+            csv += `"${p.pageNum}";"${lineIdx + 1}";"${sanitized}";"${sanitized.split(' ').slice(0, 3).join(' ')}"\n`;
           });
         });
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        triggerDownload(blob, `${baseName}_Tablo.csv`);
+        outputContent = csv;
       }
 
-      // 3. POWERPOINT (.html slides / presentation format)
+      // 3. POWERPOINT (.html presentation slides)
       else if (selectedFormat === 'pptx') {
+        defaultFileName = `${baseName}_Sunum.html`;
+        mimeType = 'text/html;charset=utf-8';
         let slidesHtml = '';
         extractedPages.forEach((p) => {
           const title = p.lines[0] || `Slayt ${p.pageNum}`;
@@ -258,7 +280,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           `;
         });
 
-        const fullPresHtml = `
+        outputContent = `
           <!DOCTYPE html>
           <html>
           <head>
@@ -281,13 +303,12 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           </body>
           </html>
         `;
-
-        const blob = new Blob([fullPresHtml], { type: 'text/html;charset=utf-8' });
-        triggerDownload(blob, `${baseName}_Sunum.html`);
       }
 
       // 4. PLAIN TEXT (.txt)
       else if (selectedFormat === 'txt') {
+        defaultFileName = `${baseName}.txt`;
+        mimeType = 'text/plain;charset=utf-8';
         let txt = `============================================================\n`;
         txt += `PDF STUDIO PRO - METİN DIŞA AKTARIMI\n`;
         txt += `Belge: ${baseName}.pdf | Toplam Sayfa: ${totalPages}\n`;
@@ -300,13 +321,13 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           }
           txt += p.lines.join('\n') + '\n';
         });
-
-        const blob = new Blob(['\uFEFF' + txt], { type: 'text/plain;charset=utf-8' });
-        triggerDownload(blob, `${baseName}.txt`);
+        outputContent = '\uFEFF' + txt;
       }
 
       // 5. MARKDOWN (.md)
       else if (selectedFormat === 'md') {
+        defaultFileName = `${baseName}.md`;
+        mimeType = 'text/markdown;charset=utf-8';
         let md = `# ${baseName}\n\n`;
         extractedPages.forEach((p) => {
           if (includePageNumbers) {
@@ -321,13 +342,13 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           });
           md += `---\n`;
         });
-
-        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-        triggerDownload(blob, `${baseName}.md`);
+        outputContent = md;
       }
 
       // 6. HTML WEB PAGE (.html)
       else if (selectedFormat === 'html') {
+        defaultFileName = `${baseName}.html`;
+        mimeType = 'text/html;charset=utf-8';
         let htmlBody = '';
         extractedPages.forEach((p) => {
           htmlBody += `<section class="page-card"><div class="page-badge">Sayfa ${p.pageNum}</div>`;
@@ -337,7 +358,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           htmlBody += `</section>`;
         });
 
-        const fullHtml = `
+        outputContent = `
           <!DOCTYPE html>
           <html lang="tr">
           <head>
@@ -348,7 +369,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
               body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #1e293b; max-width: 860px; margin: 0 auto; padding: 40px 20px; line-height: 1.6; }
               h1 { font-size: 26px; color: #0f172a; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
               .page-card { background: #ffffff; border-radius: 12px; padding: 30px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; position: relative; }
-              .page-badge { position: absolute; top: 16px; right: 16px; background: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 700; padding: 3px 8px; borderRadius: 6px; }
+              .page-badge { position: absolute; top: 16px; right: 16px; background: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
               p { margin: 0 0 10px 0; }
             </style>
           </head>
@@ -358,15 +379,47 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
           </body>
           </html>
         `;
-
-        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
-        triggerDownload(blob, `${baseName}.html`);
       }
 
-      setExportedSuccess(true);
+      // Handle Save Location
+      if (saveLocationMode === 'ask') {
+        let savedPath: string | null = null;
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const targetPath = await invoke<string | null>('pick_save_custom_file', {
+            defaultName: defaultFileName,
+            filterDesc: currentFmt.filterDesc,
+            filterExt: currentFmt.filterExt,
+          });
+
+          if (targetPath) {
+            await invoke('write_text_file', {
+              path: targetPath,
+              contents: outputContent,
+            });
+            savedPath = targetPath;
+          } else {
+            // User cancelled save dialog
+            setIsExporting(false);
+            return;
+          }
+        } catch (_) {
+          // Tauri not available or error, fallback to browser download
+          const blob = new Blob([outputContent], { type: mimeType });
+          triggerDownload(blob, defaultFileName);
+          savedPath = defaultFileName;
+        }
+        setExportedSuccess(savedPath ? `Dosya başarıyla kaydedildi: ${savedPath}` : 'Dışa aktarıldı!');
+      } else {
+        // Direct Download (Downloads Folder)
+        const blob = new Blob([outputContent], { type: mimeType });
+        triggerDownload(blob, defaultFileName);
+        setExportedSuccess(`İndirilenler klasörüne kaydedildi: ${defaultFileName}`);
+      }
+
       setTimeout(() => {
         setIsExporting(false);
-      }, 600);
+      }, 500);
     } catch (err) {
       console.error('Export failed:', err);
       alert('Dışa aktarma sırasında bir hata oluştu.');
@@ -412,7 +465,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
       <div
         className="glass-panel animate-scale-up"
         style={{
-          width: '680px',
+          width: '700px',
           maxWidth: '95vw',
           maxHeight: '90vh',
           display: 'flex',
@@ -474,7 +527,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
             <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px', display: 'block' }}>
               Dışa Aktarılacak Formatı Seçin:
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
               {formats.map((fmt) => {
                 const isSelected = selectedFormat === fmt.id;
                 const IconComponent = fmt.icon;
@@ -512,6 +565,74 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* SAVE DESTINATION / LOCATION PREFERENCE */}
+          <div style={{ background: 'var(--bg-secondary)', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FolderOpen size={15} color="var(--accent-primary)" />
+              <span>Kayıt Konumu Tercihi</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: saveLocationMode === 'ask' ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                  background: saveLocationMode === 'ask' ? 'rgba(56, 189, 248, 0.08)' : 'var(--bg-tertiary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="saveLocationMode"
+                  checked={saveLocationMode === 'ask'}
+                  onChange={() => setSaveLocationMode('ask')}
+                  style={{ marginTop: '2px' }}
+                />
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Her Seferinde Konum Sor (Önerilen)
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Farklı Kaydet penceresi açılır, istediğiniz klasörü seçersiniz.
+                  </div>
+                </div>
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: saveLocationMode === 'downloads' ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                  background: saveLocationMode === 'downloads' ? 'rgba(56, 189, 248, 0.08)' : 'var(--bg-tertiary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="saveLocationMode"
+                  checked={saveLocationMode === 'downloads'}
+                  onChange={() => setSaveLocationMode('downloads')}
+                  style={{ marginTop: '2px' }}
+                />
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Doğrudan İndirilenler'e Kaydet
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Soru sormadan standart Downloads klasörüne kaydeder.
+                  </div>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -574,6 +695,26 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
             </label>
           </div>
 
+          {/* NOTIFICATION FEEDBACK */}
+          {exportedSuccess && (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: 'var(--radius-md)',
+                color: '#10b981',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <Check size={16} />
+              <span>{exportedSuccess}</span>
+            </div>
+          )}
+
           {/* PRIVACY BADGE */}
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Sparkles size={13} color="var(--accent-primary)" />
@@ -599,7 +740,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button onClick={onClose} className="btn-ghost" style={{ fontSize: '13px' }}>
-              İptal
+              Kapat
             </button>
 
             <button
@@ -608,7 +749,7 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
               className="btn-primary"
               style={{
                 fontSize: '13px',
-                padding: '8px 20px',
+                padding: '8px 22px',
                 gap: '8px',
                 fontWeight: 600,
                 background: exportedSuccess ? '#059669' : undefined,
@@ -619,15 +760,10 @@ export const ExportOfficeModal: React.FC<ExportOfficeModalProps> = ({
                   <Loader2 size={16} className="animate-spin" />
                   <span>Dönüştürülüyor...</span>
                 </>
-              ) : exportedSuccess ? (
-                <>
-                  <Check size={16} />
-                  <span>İndirildi!</span>
-                </>
               ) : (
                 <>
                   <Download size={16} />
-                  <span>Dışa Aktar</span>
+                  <span>Dönüştür & Kaydet</span>
                 </>
               )}
             </button>

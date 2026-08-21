@@ -35,15 +35,33 @@ import { CompressModal } from './components/CompressModal';
 import { SplitPdfModal } from './components/SplitPdfModal';
 import { PageNumberingModal } from './components/PageNumberingModal';
 import { ComparePdfModal } from './components/ComparePdfModal';
+import { SettingsModal } from './components/SettingsModal';
+import { loadSettings, saveSettings } from './types/settings';
+import type { AppSettings } from './types/settings';
 
 export function App() {
+  // User Settings state
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+
   // Theme state
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [readerFilter, setReaderFilter] = useState<ReaderFilter>('normal');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const s = loadSettings();
+    return s.theme || 'dark';
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const s = loadSettings();
+    return s.sidebarDefaultOpen !== undefined ? s.sidebarDefaultOpen : true;
+  });
+  const [readerFilter, setReaderFilter] = useState<ReaderFilter>(() => {
+    const s = loadSettings();
+    return s.readerFilter || 'normal';
+  });
 
   // Zoom state
-  const [zoom, setZoom] = useState<number>(1.0);
+  const [zoom, setZoom] = useState<number>(() => {
+    const s = loadSettings();
+    return s.defaultZoom || 1.0;
+  });
 
   // Document State
   const [docState, setDocState] = useState<PDFDocumentState>({
@@ -107,6 +125,7 @@ export function App() {
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
   const [isExportImageModalOpen, setIsExportImageModalOpen] = useState(false);
   const [isExportOfficeModalOpen, setIsExportOfficeModalOpen] = useState(false);
@@ -115,6 +134,28 @@ export function App() {
   const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
   const [isPageNumberingModalOpen, setIsPageNumberingModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+
+  const handleSaveSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    saveSettings(newSettings);
+    if (newSettings.theme !== theme) setTheme(newSettings.theme);
+    if (newSettings.readerFilter !== readerFilter) setReaderFilter(newSettings.readerFilter);
+    if (newSettings.sidebarDefaultOpen !== sidebarOpen) setSidebarOpen(newSettings.sidebarDefaultOpen);
+    setActiveConfig(prev => ({
+      ...prev,
+      color: newSettings.defaultPenColor,
+      strokeWidth: newSettings.defaultPenWidth,
+      fontSize: newSettings.defaultFontSize,
+      fontFamily: newSettings.defaultFontFamily,
+    }));
+  };
+
+  const handleClearRecentFiles = () => {
+    try {
+      localStorage.removeItem('pdfstudio_recent_files');
+      showToast('Son açılan dosyalar geçmişi temizlendi.', 'info');
+    } catch (_) {}
+  };
 
   // Sync theme attribute to HTML tag
   useEffect(() => {
@@ -820,6 +861,7 @@ export function App() {
         onOpenPageNumberingModal={() => setIsPageNumberingModalOpen(true)}
         onOpenCompareModal={() => setIsCompareModalOpen(true)}
         onOpenAboutModal={() => setIsAboutModalOpen(true)}
+        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onOpenWatermarkModal={() => setIsWatermarkModalOpen(true)}
         onOpenExportImageModal={() => setIsExportImageModalOpen(true)}
         onOpenExportOfficeModal={() => setIsExportOfficeModalOpen(true)}
@@ -1051,6 +1093,14 @@ export function App() {
       <AboutModal
         isOpen={isAboutModalOpen}
         onClose={() => setIsAboutModalOpen(false)}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        settings={settings}
+        onSaveSettings={handleSaveSettings}
+        onClearRecentFiles={handleClearRecentFiles}
       />
     </div>
   );

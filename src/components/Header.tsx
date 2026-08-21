@@ -29,7 +29,8 @@ import {
   Scissors,
   Hash,
   GitCompare,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import type { PDFDocumentState, ReaderFilter } from '../types/pdf';
 
@@ -61,6 +62,7 @@ interface HeaderProps {
   onOpenPageNumberingModal: () => void;
   onOpenCompareModal: () => void;
   onOpenAboutModal: () => void;
+  onOpenSettingsModal: () => void;
   onOpenWatermarkModal: () => void;
   onOpenExportImageModal: () => void;
   onOpenExportOfficeModal: () => void;
@@ -102,6 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPageNumberingModal,
   onOpenCompareModal,
   onOpenAboutModal,
+  onOpenSettingsModal,
   onOpenWatermarkModal,
   onOpenExportImageModal,
   onOpenExportOfficeModal,
@@ -365,6 +368,14 @@ export const Header: React.FC<HeaderProps> = ({
                 <Lock size={14} color="#a855f7" /> PDF Parola & Şifreleme
               </button>
 
+              <button
+                onClick={() => { onOpenSettingsModal(); setToolsDropdownOpen(false); }}
+                className="btn-ghost"
+                style={{ justifyContent: 'flex-start', padding: '7px 10px', fontSize: '12px', gap: '8px' }}
+              >
+                <SettingsIcon size={14} color="#6366f1" /> Uygulama Ayarları & Tercihler
+              </button>
+
               {docState.data && onCloseDocument && (
                 <>
                   <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }} />
@@ -609,6 +620,15 @@ export const Header: React.FC<HeaderProps> = ({
           style={{ width: '30px', height: '30px' }}
         >
           {theme === 'dark' ? <Sun size={15} color="#f59e0b" /> : <Moon size={15} />}
+        </button>
+
+        <button 
+          onClick={onOpenSettingsModal} 
+          className="btn-icon" 
+          data-tooltip="Uygulama Ayarları & Tercihler"
+          style={{ width: '30px', height: '30px' }}
+        >
+          <SettingsIcon size={15} />
         </button>
 
         <button 

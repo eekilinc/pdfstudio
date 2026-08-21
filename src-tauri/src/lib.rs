@@ -108,6 +108,56 @@ fn pick_save_pdf_path(default_name: String) -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
+fn pick_save_custom_file(default_name: String, filter_desc: String, filter_ext: String) -> Result<Option<String>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let sanitized_name = default_name.replace('\'', "").replace('"', "");
+        let sanitized_desc = filter_desc.replace('\'', "").replace('"', "");
+        let sanitized_ext = filter_ext.replace('\'', "").replace('"', "");
+        let script = format!(
+            r#"
+            [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+            Add-Type -AssemblyName System.Windows.Forms
+            $d = New-Object System.Windows.Forms.SaveFileDialog
+            $d.Title = 'Farklı Kaydet'
+            $d.Filter = '{0} (*.{1})|*.{1}|Tüm Dosyalar (*.*)|*.*'
+            $d.FileName = '{2}'
+            $d.RestoreDirectory = $true
+            if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
+                [Console]::Out.Write($d.FileName)
+            }}
+            "#,
+            sanitized_desc, sanitized_ext, sanitized_name
+        );
+        let output = Command::new("powershell")
+            .args(["-STA", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &script])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let res = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if res.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(res))
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (default_name, filter_desc, filter_ext);
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    fs::write(&path, contents).map_err(|e| format!("Dosya kaydedilemedi: {}", e))
+}
+
+#[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -145,8 +195,10 @@ pub fn run() {
             get_startup_file, 
             read_pdf_file, 
             write_pdf_file,
+            write_text_file,
             open_pdf_dialog,
             pick_save_pdf_path, 
+            pick_save_custom_file,
             open_url
         ])
         .run(tauri::generate_context!())
